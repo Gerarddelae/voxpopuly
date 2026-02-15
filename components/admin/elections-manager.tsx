@@ -5,7 +5,7 @@ import type { Election, ElectionWithDetails } from '@/lib/types/database.types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Calendar, MapPin, Users, Edit, Trash2, Eye } from 'lucide-react';
+import { Plus, Calendar, MapPin, Users, Edit, Trash2, Eye, Power } from 'lucide-react';
 import { ElectionFormDialog } from '@/components/admin/election-form-dialog';
 import { ElectionDetailsDialog } from '@/components/admin/election-details-dialog';
 
@@ -47,6 +47,34 @@ export function ElectionsManager() {
   const handleEdit = (election: Election) => {
     setSelectedElection(election);
     setFormOpen(true);
+  };
+
+  const [toggling, setToggling] = useState<string | null>(null);
+
+  const handleToggleActive = async (election: Election) => {
+    const nextState = !election.is_active;
+    if (!confirm(`¿${nextState ? 'Activar' : 'Desactivar'} la elección "${election.title}"?`)) {
+      return;
+    }
+    setToggling(election.id);
+    try {
+      const response = await fetch(`/api/elections/${election.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: nextState }),
+      });
+      const result = await response.json();
+      if (!result.success) {
+        alert(result.error || 'No se pudo actualizar la elección');
+      } else {
+        await loadElections();
+      }
+    } catch (error) {
+      console.error('Error toggling election state:', error);
+      alert('Error al actualizar el estado de la elección');
+    } finally {
+      setToggling(null);
+    }
   };
 
   const handleViewDetails = (electionId: string) => {
@@ -181,6 +209,15 @@ export function ElectionsManager() {
                     >
                       <Eye className="mr-2 h-4 w-4" />
                       Ver detalles
+                    </Button>
+                    <Button
+                      variant={election.is_active ? 'outline' : 'default'}
+                      size="sm"
+                      onClick={() => handleToggleActive(election)}
+                      disabled={toggling === election.id}
+                    >
+                      <Power className="h-4 w-4 mr-1" />
+                      {toggling === election.id ? 'Actualizando...' : election.is_active ? 'Desactivar' : 'Activar'}
                     </Button>
                     
                     {editable && (

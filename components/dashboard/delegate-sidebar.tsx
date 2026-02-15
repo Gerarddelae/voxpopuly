@@ -44,22 +44,22 @@ const menuItems = [
     href: "/dashboard/delegate",
   },
   {
-    title: "My Voting Point",
+    title: "Mi punto",
     icon: MapPin,
     href: "/dashboard/delegate/voting-point",
   },
   {
-    title: "Manage Voters",
+    title: "Votantes",
     icon: Users,
     href: "/dashboard/delegate/voters",
   },
   {
-    title: "Slates",
+    title: "Planchas",
     icon: Vote,
     href: "/dashboard/delegate/slates",
   },
   {
-    title: "Results",
+    title: "Resultados",
     icon: BarChart,
     href: "/dashboard/delegate/results",
   },
@@ -137,7 +137,7 @@ export function DelegateSidebar({
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => {
-                const isActive = pathname === item.href;
+                const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton

@@ -115,7 +115,10 @@ export async function PUT(
       );
     }
 
-    // Verificar que la elección no haya iniciado
+    // Obtener datos del body
+    const body: Partial<ElectionFormData> & { is_active?: boolean } = await request.json();
+
+    // Verificar que la elección exista y decidir qué campos se pueden modificar
     const { data: existingElection } = await supabase
       .from('elections')
       .select('start_date')
@@ -129,15 +132,21 @@ export async function PUT(
       );
     }
 
-    if (new Date(existingElection.start_date) <= new Date()) {
-      return NextResponse.json<ApiResponse>(
-        { success: false, error: 'No se puede editar una elección que ya ha iniciado' },
-        { status: 400 }
-      );
-    }
+    const electionStarted = new Date(existingElection.start_date) <= new Date();
 
-    // Obtener datos del body
-    const body: Partial<ElectionFormData> = await request.json();
+    // Si la elección ya inició, solo permitimos cambiar is_active (activar/desactivar)
+    const allowedKeysIfStarted = ['is_active'];
+    if (electionStarted) {
+      const invalidKeys = Object.keys(body).filter(
+        (k) => body[k as keyof typeof body] !== undefined && !allowedKeysIfStarted.includes(k)
+      );
+      if (invalidKeys.length > 0) {
+        return NextResponse.json<ApiResponse>(
+          { success: false, error: 'Solo puedes activar/desactivar una elección que ya inició' },
+          { status: 400 }
+        );
+      }
+    }
 
     // Validar fechas si se están actualizando
     if (body.start_date && body.end_date) {
@@ -158,6 +167,7 @@ export async function PUT(
     if (body.description !== undefined) updateData.description = body.description || null;
     if (body.start_date) updateData.start_date = body.start_date;
     if (body.end_date) updateData.end_date = body.end_date;
+    if (body.is_active !== undefined) updateData.is_active = body.is_active;
 
     const { data: election, error } = await supabase
       .from('elections')
