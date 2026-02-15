@@ -31,15 +31,25 @@ export function LoginForm({
     const supabase = createClient();
     setIsLoading(true);
     setError(null);
-
-      try {
+    try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       if (error) throw error;
-      // Update this route to redirect to an authenticated route. The user already has an active session.
-      router.push("/dashboard");
+
+      // Wait a bit for session to be established
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Fetch role from server-side API
+      const roleResponse = await fetch("/api/auth/role");
+      const roleData = await roleResponse.json();
+      const role = roleData.role || "voter";
+
+      // Redirect based on role
+      if (role === "admin") router.push("/dashboard/admin");
+      else if (role === "delegate") router.push("/dashboard/delegate");
+      else router.push("/dashboard/voter");
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
     } finally {
