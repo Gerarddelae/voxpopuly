@@ -50,6 +50,25 @@ export async function GET(
       );
     }
 
+    // Agregar conteo de votantes para cada punto de votación
+    if (election.voting_points) {
+      const votingPointsWithCounts = await Promise.all(
+        election.voting_points.map(async (vp: any) => {
+          const { count } = await supabase
+            .from('voters')
+            .select('*', { count: 'exact', head: true })
+            .eq('voting_point_id', vp.id);
+          
+          return {
+            ...vp,
+            total_voters: count || 0
+          };
+        })
+      );
+      
+      election.voting_points = votingPointsWithCounts;
+    }
+
     return NextResponse.json<ApiResponse<Election>>({
       success: true,
       data: election,

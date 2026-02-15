@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import type { VotingPoint, VotingPointFormData, Profile, SlateWithDetails } from '@/lib/types/database.types';
+import { useState, useEffect, useMemo } from 'react';
+import type { VotingPoint, VotingPointFormData, Profile, SlateWithDetails, Voter } from '@/lib/types/database.types';
 import {
   Dialog,
   DialogContent,
@@ -23,10 +23,11 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, UserPlus, Plus, Edit, Trash2, Users } from 'lucide-react';
+import { Loader2, UserPlus, Plus, Edit, Trash2, Users, UserCheck } from 'lucide-react';
 import { DelegateFormDialog } from './delegate-form-dialog';
 import { SlateFormDialog } from './slate-form-dialog';
 import { SlateEditDialog } from './slate-edit-dialog';
+import { VoterAssignInline } from './voter-assign-dialog';
 
 interface VotingPointEditDialogProps {
   open: boolean;
@@ -44,9 +45,11 @@ export function VotingPointEditDialog({
   const [loading, setLoading] = useState(false);
   const [delegates, setDelegates] = useState<Profile[]>([]);
   const [slates, setSlates] = useState<SlateWithDetails[]>([]);
+  const [voters, setVoters] = useState<Voter[]>([]);
   const [delegateFormOpen, setDelegateFormOpen] = useState(false);
   const [slateFormOpen, setSlateFormOpen] = useState(false);
   const [slateEditOpen, setSlateEditOpen] = useState(false);
+  const [showAssignVoters, setShowAssignVoters] = useState(false);
   const [selectedSlate, setSelectedSlate] = useState<SlateWithDetails | null>(null);
   const [activeTab, setActiveTab] = useState('info');
   const [formData, setFormData] = useState<VotingPointFormData>({
@@ -59,12 +62,14 @@ export function VotingPointEditDialog({
     if (open) {
       loadDelegates();
       loadSlates();
+      loadVoters();
       setFormData({
         name: votingPoint.name,
         location: votingPoint.location || '',
         delegate_id: votingPoint.delegate_id || undefined,
       });
       setActiveTab('info');
+      setShowAssignVoters(false);
     }
   }, [open, votingPoint]);
 
@@ -89,6 +94,18 @@ export function VotingPointEditDialog({
       }
     } catch (error) {
       console.error('Error loading slates:', error);
+    }
+  };
+
+  const loadVoters = async () => {
+    try {
+      const response = await fetch(`/api/voting-points/${votingPoint.id}/voters`);
+      const result = await response.json();
+      if (result.success) {
+        setVoters(result.data);
+      }
+    } catch (error) {
+      console.error('Error loading voters:', error);
     }
   };
 
@@ -156,6 +173,35 @@ export function VotingPointEditDialog({
     }
   };
 
+  const handleDeleteVoter = async (voter: Voter) => {
+    const voterName = voter.profile?.full_name || 'este votante';
+    if (!confirm(`¿Estás seguro de eliminar a "${voterName}" de este punto de votación?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/voting-points/${votingPoint.id}/voters/${voter.id}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        loadVoters();
+      } else {
+        alert(`Error: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error deleting voter:', error);
+      alert('Error al eliminar el votante');
+    }
+  };
+
+  // Memoizar los IDs de votantes asignados para evitar recrear el array
+  const assignedVoterIds = useMemo(
+    () => voters.map(v => v.profile_id),
+    [voters]
+  );
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -168,10 +214,13 @@ export function VotingPointEditDialog({
           </DialogHeader>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="info">Información</TabsTrigger>
               <TabsTrigger value="slates">
                 Planchas ({slates.length})
+              </TabsTrigger>
+              <TabsTrigger value="voters">
+                Votantes ({voters.length})
               </TabsTrigger>
             </TabsList>
 
@@ -361,6 +410,93 @@ export function VotingPointEditDialog({
                 </Button>
               </DialogFooter>
             </TabsContent>
+
+            {/* Tab de Votantes */}
+            <TabsContent value="voters" className="space-y-4">
+              {showAssignVoters ? (
+                <VoterAssignInline
+                  votingPointId={votingPoint.id}
+                  assignedVoterIds={assignedVoterIds}
+                  onSuccess={() => {
+                    setShowAssignVoters(false);
+                    loadVoters();
+                  }}
+                  onBack={() => setShowAssignVoters(false)}
+                />
+              ) : (
+                <>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      Gestiona los votantes autorizados para este punto de votación
+                    </p>
+                    <Button size="sm" onClick={() => setShowAssignVoters(true)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Asignar votantes
+                    </Button>
+                  </div>
+
+                  {voters.length === 0 ? (
+                    <Card>
+                      <CardContent className="py-12 text-center">
+                        <UserCheck className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                        <p className="text-muted-foreground mb-4">
+                          No hay votantes asignados a este punto de votación
+                        </p>
+                        <Button onClick={() => setShowAssignVoters(true)}>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Asignar primeros votantes
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <div className="grid gap-3">
+                      {voters.map((voter) => (
+                        <Card key={voter.id}>
+                          <CardContent className="py-3">
+                            <div className="flex items-center justify-between gap-4">
+                              <div className="flex-1">
+                                <p className="font-medium">
+                                  {voter.profile?.full_name || 'Sin nombre'}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  Doc: {voter.profile?.document || 'N/A'}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {voter.has_voted ? (
+                                  <Badge variant="default">Ya votó</Badge>
+                                ) : (
+                                  <Badge variant="outline">Pendiente</Badge>
+                                )}
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={() => handleDeleteVoter(voter)}
+                                  title="Eliminar votante"
+                                  disabled={voter.has_voted}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+
+                  <DialogFooter>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => onOpenChange(false)}
+                    >
+                      Cerrar
+                    </Button>
+                  </DialogFooter>
+                </>
+              )}
+            </TabsContent>
           </Tabs>
         </DialogContent>
       </Dialog>
@@ -387,6 +523,8 @@ export function VotingPointEditDialog({
         slate={selectedSlate}
         onSuccess={handleSlateEditSuccess}
       />
+
+
     </>
   );
 }

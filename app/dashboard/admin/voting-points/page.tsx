@@ -10,7 +10,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { MapPin, User, Users, Calendar, ChevronDown, ChevronRight } from 'lucide-react';
+import { MapPin, User, Users, Calendar, ChevronDown, ChevronRight, UserCheck } from 'lucide-react';
 import { VotingPointEditDialog } from '@/components/admin/voting-point-edit-dialog';
 
 export default function VotingPointsPage() {
@@ -206,6 +206,14 @@ export default function VotingPointsPage() {
                                   <span className="text-xs">
                                     {vp.slates?.length || 0}{' '}
                                     {vp.slates?.length === 1 ? 'plancha' : 'planchas'}
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center text-muted-foreground">
+                                  <UserCheck className="mr-2 h-3.5 w-3.5" />
+                                  <span className="text-xs">
+                                    {vp.total_voters || 0}{' '}
+                                    {vp.total_voters === 1 ? 'votante' : 'votantes'}
                                   </span>
                                 </div>
                               </CardContent>
