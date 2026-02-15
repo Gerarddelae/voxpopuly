@@ -43,17 +43,17 @@ const menuItems = [
     href: "/dashboard/voter",
   },
   {
-    title: "Active Elections",
+    title: "Elecciones activas",
     icon: Vote,
     href: "/dashboard/voter/elections",
   },
   {
-    title: "My Votes",
+    title: "Mi voto",
     icon: CheckCircle,
     href: "/dashboard/voter/my-votes",
   },
   {
-    title: "Voting History",
+    title: "Historial",
     icon: History,
     href: "/dashboard/voter/history",
   },
@@ -131,7 +131,7 @@ export function VoterSidebar({
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => {
-                const isActive = pathname === item.href;
+                const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton

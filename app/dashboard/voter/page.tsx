@@ -205,51 +205,69 @@ export default function VoterPage() {
   // Si puede votar: mostrar planchas
   const slates = votingInfo.slates || [];
   const canActuallyVote = votingInfo.canVote && slates.length > 0;
+  const electionStatus = votingInfo.election?.is_active ? 'Activa' : 'Inactiva';
+  const period = `${votingInfo.election?.start_date ? new Date(votingInfo.election.start_date).toLocaleDateString('es-ES') : 'N/A'} - ${votingInfo.election?.end_date ? new Date(votingInfo.election.end_date).toLocaleDateString('es-ES') : 'N/A'}`;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">
-          {votingInfo.canVote ? 'Emitir Voto' : 'Panel de Votación'}
-        </h2>
-        <p className="text-muted-foreground">{votingInfo.election?.title}</p>
+      {/* Hero */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-3 flex-wrap">
+          <h2 className="text-3xl font-bold tracking-tight">Panel de Votación</h2>
+          <Badge variant={votingInfo.canVote ? 'default' : 'secondary'} className="flex items-center gap-1">
+            <Vote className="h-3 w-3" /> {votingInfo.canVote ? 'Votación abierta' : 'Votación cerrada'}
+          </Badge>
+          <Badge variant={votingInfo.hasVoted ? 'outline' : 'default'} className="flex items-center gap-1">
+            <CheckCircle2 className="h-3 w-3" /> {votingInfo.hasVoted ? 'Voto emitido' : 'Pendiente de votar'}
+          </Badge>
+        </div>
+        <p className="text-muted-foreground">{votingInfo.election?.title || 'Sin título de elección'}</p>
       </div>
 
-      {/* Información del votante */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="grid gap-3 text-sm">
-            <div className="flex items-center gap-2">
+      {/* Resumen */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardContent className="pt-4 space-y-2">
+            <p className="text-xs text-muted-foreground">Punto de votación</p>
+            <div className="flex items-center gap-2 text-sm">
               <MapPin className="h-4 w-4 text-muted-foreground" />
-              <span>
-                <strong>Punto de votación:</strong> {votingInfo.votingPoint?.name}
-                {votingInfo.votingPoint?.location && ` - ${votingInfo.votingPoint.location}`}
-              </span>
+              <span className="font-semibold">{votingInfo.votingPoint?.name || 'No asignado'}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span>
-                <strong>Periodo:</strong>{' '}
-                {votingInfo.election?.start_date 
-                  ? new Date(votingInfo.election.start_date).toLocaleDateString('es-ES')
-                  : 'N/A'} -{' '}
-                {votingInfo.election?.end_date
-                  ? new Date(votingInfo.election.end_date).toLocaleDateString('es-ES')
-                  : 'N/A'}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <span>
-                <strong>Planchas disponibles:</strong> {slates.length}
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            {votingInfo.votingPoint?.location && (
+              <p className="text-sm text-muted-foreground">{votingInfo.votingPoint.location}</p>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Banner de estado de votación */}
+        <Card>
+          <CardContent className="pt-4 space-y-2">
+            <p className="text-xs text-muted-foreground">Periodo</p>
+            <div className="flex items-center gap-2 text-sm">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <span className="font-semibold">{period}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-4 space-y-3">
+            <div className="flex items-center gap-2 text-sm">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <span><strong>Planchas:</strong> {slates.length}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <Badge variant={votingInfo.election?.is_active ? 'default' : 'secondary'}>
+                {electionStatus}
+              </Badge>
+              <Badge variant={votingInfo.canVote ? 'default' : 'outline'}>
+                {votingInfo.canVote ? 'Puedes votar' : 'No disponible'}
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Estado y mensajes */}
       {!votingInfo.canVote && votingInfo.election && (
         <Alert variant="default" className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950 dark:border-yellow-800">
           <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
@@ -264,16 +282,13 @@ export default function VoterPage() {
         </Alert>
       )}
 
-      {/* Instrucciones (solo si puede votar) */}
-      {votingInfo.canVote && slates.length > 0 && (
-        <Alert>
-          <Vote className="h-4 w-4" />
-          <AlertDescription>
-            <strong>Instrucciones:</strong> Selecciona una plancha de candidatos y confirma tu voto.
-            Una vez emitido, no podrás cambiar tu elección. Tu voto es completamente anónimo.
-          </AlertDescription>
-        </Alert>
-      )}
+      {/* Instrucciones */}
+      <Alert>
+        <Vote className="h-4 w-4" />
+        <AlertDescription>
+          <strong>Cómo votar:</strong> selecciona una plancha y confirma. El voto es anónimo. Si la elección está cerrada, podrás revisar la información pero no votar.
+        </AlertDescription>
+      </Alert>
 
       {/* Planchas disponibles */}
       {slates.length === 0 ? (
