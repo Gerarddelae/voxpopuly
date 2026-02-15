@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { VotingPoint, VotingPointFormData, Profile } from '@/lib/types/database.types';
+import type { VotingPoint, VotingPointFormData, Profile, SlateWithDetails } from '@/lib/types/database.types';
 import {
   Dialog,
   DialogContent,
@@ -20,8 +20,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, UserPlus } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, UserPlus, Plus, Edit, Trash2, Users } from 'lucide-react';
 import { DelegateFormDialog } from './delegate-form-dialog';
+import { SlateFormDialog } from './slate-form-dialog';
+import { SlateEditDialog } from './slate-edit-dialog';
 
 interface VotingPointEditDialogProps {
   open: boolean;
@@ -38,7 +43,12 @@ export function VotingPointEditDialog({
 }: VotingPointEditDialogProps) {
   const [loading, setLoading] = useState(false);
   const [delegates, setDelegates] = useState<Profile[]>([]);
+  const [slates, setSlates] = useState<SlateWithDetails[]>([]);
   const [delegateFormOpen, setDelegateFormOpen] = useState(false);
+  const [slateFormOpen, setSlateFormOpen] = useState(false);
+  const [slateEditOpen, setSlateEditOpen] = useState(false);
+  const [selectedSlate, setSelectedSlate] = useState<SlateWithDetails | null>(null);
+  const [activeTab, setActiveTab] = useState('info');
   const [formData, setFormData] = useState<VotingPointFormData>({
     name: votingPoint.name,
     location: votingPoint.location || '',
@@ -48,11 +58,13 @@ export function VotingPointEditDialog({
   useEffect(() => {
     if (open) {
       loadDelegates();
+      loadSlates();
       setFormData({
         name: votingPoint.name,
         location: votingPoint.location || '',
         delegate_id: votingPoint.delegate_id || undefined,
       });
+      setActiveTab('info');
     }
   }, [open, votingPoint]);
 
@@ -65,6 +77,18 @@ export function VotingPointEditDialog({
       }
     } catch (error) {
       console.error('Error loading delegates:', error);
+    }
+  };
+
+  const loadSlates = async () => {
+    try {
+      const response = await fetch(`/api/voting-points/${votingPoint.id}/slates`);
+      const result = await response.json();
+      if (result.success) {
+        setSlates(result.data);
+      }
+    } catch (error) {
+      console.error('Error loading slates:', error);
     }
   };
 
@@ -94,102 +118,252 @@ export function VotingPointEditDialog({
     }
   };
 
+  const handleEditSlate = (slate: SlateWithDetails) => {
+    setSelectedSlate(slate);
+    setSlateEditOpen(true);
+  };
+
+  const handleSlateEditSuccess = () => {
+    setSlateEditOpen(false);
+    setSelectedSlate(null);
+    loadSlates();
+  };
+
+  const handleSlateFormSuccess = () => {
+    setSlateFormOpen(false);
+    loadSlates();
+  };
+
+  const handleDeleteSlate = async (slate: SlateWithDetails) => {
+    if (!confirm(`¿Estás seguro de eliminar la plancha "${slate.name}"?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/slates/${slate.id}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        loadSlates();
+      } else {
+        alert(`Error: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error deleting slate:', error);
+      alert('Error al eliminar la plancha');
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <form onSubmit={handleSubmit}>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar Punto de Votación</DialogTitle>
             <DialogDescription>
-              Modifica la información del punto de votación
+              Modifica la información del punto de votación y gestiona sus planchas
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="edit-name">
-                Nombre <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="edit-name"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                placeholder="Ej: Mesa 1 - Edificio Principal"
-                required
-              />
-            </div>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="info">Información</TabsTrigger>
+              <TabsTrigger value="slates">
+                Planchas ({slates.length})
+              </TabsTrigger>
+            </TabsList>
 
-            <div className="grid gap-2">
-              <Label htmlFor="edit-location">Ubicación</Label>
-              <Input
-                id="edit-location"
-                value={formData.location}
-                onChange={(e) =>
-                  setFormData({ ...formData, location: e.target.value })
-                }
-                placeholder="Ej: Piso 2, Salón 201"
-              />
-            </div>
+            {/* Tab de Información */}
+            <TabsContent value="info" className="space-y-4">
+              <form onSubmit={handleSubmit}>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-name">
+                      Nombre <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="edit-name"
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                      placeholder="Ej: Mesa 1 - Edificio Principal"
+                      required
+                    />
+                  </div>
 
-            <div className="grid gap-2">
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-location">Ubicación</Label>
+                    <Input
+                      id="edit-location"
+                      value={formData.location}
+                      onChange={(e) =>
+                        setFormData({ ...formData, location: e.target.value })
+                      }
+                      placeholder="Ej: Piso 2, Salón 201"
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="edit-delegate">Delegado asignado</Label>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDelegateFormOpen(true)}
+                        className="h-auto py-1 px-2 text-xs"
+                      >
+                        <UserPlus className="h-3 w-3 mr-1" />
+                        Nuevo delegado
+                      </Button>
+                    </div>
+                    <Select
+                      value={formData.delegate_id || 'none'}
+                      onValueChange={(value) =>
+                        setFormData({ 
+                          ...formData, 
+                          delegate_id: value === 'none' ? undefined : value 
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar delegado" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Sin delegado</SelectItem>
+                        {delegates.map((delegate) => (
+                          <SelectItem key={delegate.id} value={delegate.id}>
+                            {delegate.full_name} ({delegate.document})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Asigna o cambia el delegado de este punto de votación
+                    </p>
+                  </div>
+                </div>
+
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => onOpenChange(false)}
+                    disabled={loading}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={loading}>
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Actualizar
+                  </Button>
+                </DialogFooter>
+              </form>
+            </TabsContent>
+
+            {/* Tab de Planchas */}
+            <TabsContent value="slates" className="space-y-4">
               <div className="flex items-center justify-between">
-                <Label htmlFor="edit-delegate">Delegado asignado</Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setDelegateFormOpen(true)}
-                  className="h-auto py-1 px-2 text-xs"
-                >
-                  <UserPlus className="h-3 w-3 mr-1" />
-                  Nuevo delegado
+                <p className="text-sm text-muted-foreground">
+                  Gestiona las planchas de candidatos para este punto de votación
+                </p>
+                <Button size="sm" onClick={() => setSlateFormOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Nueva plancha
                 </Button>
               </div>
-              <Select
-                value={formData.delegate_id || 'none'}
-                onValueChange={(value) =>
-                  setFormData({ 
-                    ...formData, 
-                    delegate_id: value === 'none' ? undefined : value 
-                  })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar delegado" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sin delegado</SelectItem>
-                  {delegates.map((delegate) => (
-                    <SelectItem key={delegate.id} value={delegate.id}>
-                      {delegate.full_name} ({delegate.document})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Asigna o cambia el delegado de este punto de votación
-              </p>
-            </div>
-          </div>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Actualizar
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
+              {slates.length === 0 ? (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground mb-4">
+                      No hay planchas creadas para este punto de votación
+                    </p>
+                    <Button onClick={() => setSlateFormOpen(true)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Crear primera plancha
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid gap-4">
+                  {slates.map((slate) => (
+                    <Card key={slate.id}>
+                      <CardHeader>
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <CardTitle className="text-lg">{slate.name}</CardTitle>
+                            {slate.description && (
+                              <CardDescription className="mt-1">
+                                {slate.description}
+                              </CardDescription>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">
+                              {slate.vote_count} votos
+                            </Badge>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => handleEditSlate(slate)}
+                              title="Editar plancha"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => handleDeleteSlate(slate)}
+                              title="Eliminar plancha"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      {slate.members && slate.members.length > 0 && (
+                        <CardContent>
+                          <div className="space-y-2">
+                            <p className="text-sm font-medium">Candidatos:</p>
+                            <div className="grid gap-2">
+                              {slate.members.map((member) => (
+                                <div
+                                  key={member.id}
+                                  className="flex items-center justify-between text-sm p-2 rounded-md bg-muted/50"
+                                >
+                                  <span className="font-medium">{member.full_name}</span>
+                                  {member.role && (
+                                    <span className="text-muted-foreground">{member.role}</span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </CardContent>
+                      )}
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                >
+                  Cerrar
+                </Button>
+              </DialogFooter>
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
 
       <DelegateFormDialog
         open={delegateFormOpen}
@@ -199,6 +373,20 @@ export function VotingPointEditDialog({
           loadDelegates();
         }}
       />
-    </Dialog>
+
+      <SlateFormDialog
+        open={slateFormOpen}
+        onOpenChange={setSlateFormOpen}
+        votingPointId={votingPoint.id}
+        onSuccess={handleSlateFormSuccess}
+      />
+
+      <SlateEditDialog
+        open={slateEditOpen}
+        onOpenChange={setSlateEditOpen}
+        slate={selectedSlate}
+        onSuccess={handleSlateEditSuccess}
+      />
+    </>
   );
 }

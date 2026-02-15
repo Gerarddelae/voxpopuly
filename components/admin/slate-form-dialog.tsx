@@ -157,17 +157,19 @@ export function SlateFormDialog({
                     <div className="flex-1 space-y-2">
                       <Input
                         placeholder="Nombre completo"
-                        value={member.full_name}
+                        value={member.full_name || ''}
                         onChange={(e) =>
                           handleMemberChange(index, 'full_name', e.target.value)
                         }
+                        autoComplete="off"
                       />
                       <Input
                         placeholder="Cargo (opcional)"
-                        value={member.role}
+                        value={member.role || ''}
                         onChange={(e) =>
                           handleMemberChange(index, 'role', e.target.value)
                         }
+                        autoComplete="off"
                       />
                     </div>
                     {members.length > 1 && (

@@ -159,7 +159,15 @@ export async function GET(
     // Obtener planchas con miembros
     const { data: slates, error } = await supabase
       .from('slates')
-      .select('*, members:slate_members(*)')
+      .select(`
+        *,
+        slate_members (
+          id,
+          full_name,
+          role,
+          created_at
+        )
+      `)
       .eq('voting_point_id', votingPointId)
       .order('created_at', { ascending: false });
 
@@ -171,9 +179,15 @@ export async function GET(
       );
     }
 
+    // Mapear slate_members a members para compatibilidad
+    const slatesWithMembers = slates?.map(slate => ({
+      ...slate,
+      members: slate.slate_members || [],
+    })) || [];
+
     return NextResponse.json<ApiResponse<Slate[]>>({
       success: true,
-      data: slates,
+      data: slatesWithMembers,
     });
   } catch (error) {
     console.error('GET /api/voting-points/[pointId]/slates error:', error);

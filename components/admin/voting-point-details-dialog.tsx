@@ -14,6 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Plus, MapPin, User, Users, Edit, Trash2 } from 'lucide-react';
 import { SlateFormDialog } from '@/components/admin/slate-form-dialog';
+import { SlateEditDialog } from '@/components/admin/slate-edit-dialog';
 import { VotingPointEditDialog } from '@/components/admin/voting-point-edit-dialog';
 
 interface VotingPointDetailsDialogProps {
@@ -30,6 +31,8 @@ export function VotingPointDetailsDialog({
   onUpdate,
 }: VotingPointDetailsDialogProps) {
   const [slateFormOpen, setSlateFormOpen] = useState(false);
+  const [slateEditOpen, setSlateEditOpen] = useState(false);
+  const [selectedSlate, setSelectedSlate] = useState<SlateWithDetails | null>(null);
   const [editFormOpen, setEditFormOpen] = useState(false);
 
   if (!votingPoint) return null;
@@ -70,6 +73,43 @@ export function VotingPointDetailsDialog({
     // Re-fetch voting point details
     onOpenChange(false);
     setTimeout(() => onOpenChange(true), 100);
+  };
+
+  const handleEditSlate = (slate: SlateWithDetails) => {
+    setSelectedSlate(slate);
+    setSlateEditOpen(true);
+  };
+
+  const handleSlateEditSuccess = () => {
+    setSlateEditOpen(false);
+    setSelectedSlate(null);
+    // Re-fetch voting point details
+    onOpenChange(false);
+    setTimeout(() => onOpenChange(true), 100);
+  };
+
+  const handleDeleteSlate = async (slate: SlateWithDetails) => {
+    if (!confirm(`¿Estás seguro de eliminar la plancha "${slate.name}"?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/slates/${slate.id}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        // Re-fetch voting point details
+        onOpenChange(false);
+        setTimeout(() => onOpenChange(true), 100);
+      } else {
+        alert(`Error: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error deleting slate:', error);
+      alert('Error al eliminar la plancha');
+    }
   };
 
   const handleEditSuccess = () => {
@@ -170,8 +210,8 @@ export function VotingPointDetailsDialog({
                   {votingPoint.slates.map((slate) => (
                     <Card key={slate.id}>
                       <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div>
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
                             <CardTitle className="text-lg">{slate.name}</CardTitle>
                             {slate.description && (
                               <CardDescription className="mt-1">
@@ -179,9 +219,27 @@ export function VotingPointDetailsDialog({
                               </CardDescription>
                             )}
                           </div>
-                          <Badge variant="outline">
-                            {slate.vote_count} votos
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">
+                              {slate.vote_count} votos
+                            </Badge>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => handleEditSlate(slate)}
+                              title="Editar plancha"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => handleDeleteSlate(slate)}
+                              title="Eliminar plancha"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </CardHeader>
                       {slate.members && slate.members.length > 0 && (
@@ -218,6 +276,13 @@ export function VotingPointDetailsDialog({
         onOpenChange={setSlateFormOpen}
         votingPointId={votingPoint.id}
         onSuccess={handleSlateFormSuccess}
+      />
+
+      <SlateEditDialog
+        open={slateEditOpen}
+        onOpenChange={setSlateEditOpen}
+        slate={selectedSlate}
+        onSuccess={handleSlateEditSuccess}
       />
 
       <VotingPointEditDialog
