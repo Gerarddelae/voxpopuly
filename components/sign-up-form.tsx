@@ -23,6 +23,8 @@ export function SignUpForm({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [repeatPassword, setRepeatPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [document, setDocument] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -45,6 +47,10 @@ export function SignUpForm({
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/dashboard`,
+          data: {
+            full_name: fullName,
+            document,
+          },
         },
       });
       if (error) throw error;
@@ -77,6 +83,28 @@ export function SignUpForm({
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="full-name">Full name</Label>
+                  <Input
+                    id="full-name"
+                    type="text"
+                    placeholder="Juan Pérez"
+                    required
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="document">Document</Label>
+                  <Input
+                    id="document"
+                    type="text"
+                    placeholder="ID or document number"
+                    required
+                    value={document}
+                    onChange={(e) => setDocument(e.target.value)}
+                  />
+                </div>
               <div className="grid gap-2">
                 <div className="flex items-center">
                   <Label htmlFor="password">Password</Label>

@@ -60,6 +60,8 @@ export function LeadSourcesChart() {
   const data = allData[timeRange];
   const totalLeads = data.reduce((acc, item) => acc + item.value, 0);
 
+  const formatNumber = (n: number) => n.toLocaleString("en-US");
+
   const onPieEnter = (_: unknown, index: number) => {
     setActiveIndex(index);
   };
@@ -176,7 +178,7 @@ export function LeadSourcesChart() {
           </ResponsiveContainer>
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
             <span className="text-lg sm:text-xl font-semibold">
-              {totalLeads.toLocaleString()}
+              {formatNumber(totalLeads)}
             </span>
             <span className="text-[10px] sm:text-xs text-muted-foreground">
               Total Leads
@@ -205,7 +207,7 @@ export function LeadSourcesChart() {
                   {item.name}
                 </span>
                 <span className="text-xs sm:text-sm font-semibold tabular-nums">
-                  {item.value.toLocaleString()}
+                  {formatNumber(item.value)}
                 </span>
               </div>
             ))}
