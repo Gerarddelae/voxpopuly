@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import type { ApiResponse } from '@/lib/types/database.types';
 
+export const dynamic = 'force-dynamic';
+
 type StatSlate = {
   id: string;
   name: string;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -39,48 +39,15 @@ export default function DelegateResultsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   useEffect(() => {
     loadStats();
-    // Suscripción en tiempo real a cambios en slates.vote_count del punto del delegado
-    let channel: ReturnType<typeof supabase.channel> | null = null;
-
-    async function subscribe(votingPointId: string) {
-      channel = supabase
-        .channel(`slates-vp-${votingPointId}`)
-        .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table: 'slates',
-          filter: `voting_point_id=eq.${votingPointId}`,
-        }, (payload) => {
-          setStats((prev) => {
-            if (!prev) return prev;
-            const updated = [...prev.slates];
-            if (payload.eventType === 'DELETE') {
-              return prev; // no-op for now
-            }
-            const row = payload.new as SlateStat;
-            const idx = updated.findIndex((s) => s.id === row.id);
-            if (idx >= 0) {
-              updated[idx] = { ...updated[idx], vote_count: row.vote_count ?? 0, name: row.name, description: row.description };
-            } else {
-              updated.push({ id: row.id, name: row.name, description: row.description, vote_count: row.vote_count ?? 0 });
-            }
-            const totalVotes = updated.reduce((a, s) => a + (s.vote_count || 0), 0);
-            return { ...prev, slates: updated, totalVotes };
-          });
-        })
-        .subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            // console.log('Realtime subscribed for slates');
-          }
-        });
-    }
 
     return () => {
-      if (channel) {
-        supabase.removeChannel(channel);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -98,8 +65,15 @@ export default function DelegateResultsPage() {
         return;
       }
       setStats(json.data);
-      // iniciar suscripción con el punto asignado
+      
+      // Configurar suscripción en tiempo real para el punto de votación del delegado
       if (json.data?.votingPoint?.id) {
+        // Limpiar canal anterior si existe
+        if (channelRef.current) {
+          supabase.removeChannel(channelRef.current);
+        }
+
+        // Crear nuevo canal de suscripción
         const channel = supabase.channel(`slates-vp-${json.data.votingPoint.id}`);
         channel.on('postgres_changes', {
           event: '*',
@@ -110,16 +84,48 @@ export default function DelegateResultsPage() {
           setStats((prev) => {
             if (!prev) return prev;
             const updated = [...prev.slates];
+            
+            if (payload.eventType === 'DELETE') {
+              // Remover planilla eliminada
+              const deletedId = (payload.old as any)?.id;
+              const filtered = updated.filter((s) => s.id !== deletedId);
+              const totalVotes = filtered.reduce((a, s) => a + (s.vote_count || 0), 0);
+              return { ...prev, slates: filtered, totalVotes };
+            }
+            
             const row = payload.new as SlateStat;
             const idx = updated.findIndex((s) => s.id === row.id);
+            
             if (idx >= 0) {
-              updated[idx] = { ...updated[idx], vote_count: row.vote_count ?? 0, name: row.name, description: row.description };
+              // Actualizar planilla existente
+              updated[idx] = { 
+                ...updated[idx], 
+                vote_count: row.vote_count ?? 0, 
+                name: row.name, 
+                description: row.description 
+              };
+            } else {
+              // Agregar nueva planilla
+              updated.push({ 
+                id: row.id, 
+                name: row.name, 
+                description: row.description, 
+                vote_count: row.vote_count ?? 0 
+              });
             }
+            
             const totalVotes = updated.reduce((a, s) => a + (s.vote_count || 0), 0);
             return { ...prev, slates: updated, totalVotes };
           });
         });
-        channel.subscribe();
+        
+        channel.subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('✅ Suscripción en tiempo real activa para resultados');
+          }
+        });
+        
+        channelRef.current = channel;
       }
     } catch (e) {
       setError('No se pudieron cargar las estadísticas');

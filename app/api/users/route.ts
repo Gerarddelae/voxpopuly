@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import type { ApiResponse, Profile } from '@/lib/types/database.types';
 
+export const dynamic = 'force-dynamic';
+
 // GET - Obtener lista de todos los usuarios (solo admins)
 export async function GET(request: NextRequest) {
   try {

@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { ApiResponse, Profile } from '@/lib/types/database.types';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 
+export const dynamic = 'force-dynamic';
+
 // GET - Obtener lista de votantes disponibles
 export async function GET(request: NextRequest) {
   try {

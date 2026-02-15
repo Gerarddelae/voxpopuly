@@ -3,6 +3,8 @@ import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import type { ApiResponse } from '@/lib/types/database.types';
 
+export const dynamic = 'force-dynamic';
+
 // GET - Obtener información de votación para el votante actual
 export async function GET() {
   try {

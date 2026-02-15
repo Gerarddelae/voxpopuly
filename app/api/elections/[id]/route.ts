@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import type { ApiResponse, Election, ElectionFormData } from '@/lib/types/database.types';
 
+export const dynamic = 'force-dynamic';
+
 // GET - Obtener una elección específica con detalles
 export async function GET(
   request: NextRequest,

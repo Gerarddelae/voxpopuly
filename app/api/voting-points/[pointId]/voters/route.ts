@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import type { ApiResponse, Voter } from '@/lib/types/database.types';
 
+export const dynamic = 'force-dynamic';
+
 // POST - Asignar votante(s) a un punto de votación
 export async function POST(
   request: NextRequest,

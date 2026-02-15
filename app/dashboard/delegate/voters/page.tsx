@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Users, CheckCircle2, Clock } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 interface VoterRow {
   id: string;
@@ -27,6 +28,9 @@ export default function DelegateVotersPage() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<VotersPayload | null>(null);
 
+  const supabase = useMemo(() => createClient(), []);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
   useEffect(() => {
     const load = async () => {
       try {
@@ -36,6 +40,49 @@ export default function DelegateVotersPage() {
           setError(json.error || 'No se pudieron cargar los votantes');
         } else {
           setData(json.data);
+          
+          // Configurar suscripción en tiempo real para votantes del punto
+          if (json.data?.votingPoint?.id) {
+            // Limpiar canal anterior si existe
+            if (channelRef.current) {
+              supabase.removeChannel(channelRef.current);
+            }
+
+            // Crear nuevo canal de suscripción
+            const channel = supabase.channel(`voters-vp-${json.data.votingPoint.id}`);
+            channel.on('postgres_changes', {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'voters',
+              filter: `voting_point_id=eq.${json.data.votingPoint.id}`,
+            }, (payload) => {
+              setData((prev) => {
+                if (!prev) return prev;
+                
+                const updatedVoter = payload.new as any;
+                const updatedVoters = prev.voters.map((voter) => {
+                  if (voter.id === updatedVoter.id) {
+                    return {
+                      ...voter,
+                      has_voted: updatedVoter.has_voted ?? voter.has_voted,
+                      voted_at: updatedVoter.voted_at ?? voter.voted_at,
+                    };
+                  }
+                  return voter;
+                });
+
+                return { ...prev, voters: updatedVoters };
+              });
+            });
+
+            channel.subscribe((status) => {
+              if (status === 'SUBSCRIBED') {
+                console.log('✅ Suscripción en tiempo real activa para votantes');
+              }
+            });
+
+            channelRef.current = channel;
+          }
         }
       } catch (e) {
         setError('No se pudieron cargar los votantes');
@@ -44,6 +91,14 @@ export default function DelegateVotersPage() {
       }
     };
     load();
+
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (loading) {

@@ -3,6 +3,8 @@ import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import type { ApiResponse } from '@/lib/types/database.types';
 
+export const dynamic = 'force-dynamic';
+
 // POST - Registrar voto del votante
 export async function POST(request: NextRequest) {
   try {

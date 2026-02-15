@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -136,23 +136,55 @@ export default function ReportsPage() {
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<StatsPayload | null>(null);
   const supabase = useMemo(() => createClient(), []);
+  const channelsRef = useRef<ReturnType<typeof supabase.channel>[]>([]);
 
   useEffect(() => {
     loadStats();
 
-    const channel = supabase
-      .channel('admin-global-slates')
+    return () => {
+      // Limpiar todos los canales al desmontar
+      channelsRef.current.forEach((ch) => supabase.removeChannel(ch));
+      channelsRef.current = [];
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const recalcTotals = (votingPoints: StatVotingPoint[]) => {
+    const agg = votingPoints.reduce((acc, vp) => {
+      if (vp.election?.id) acc.elections.add(vp.election.id);
+      acc.votes += vp.totalVotes;
+      acc.voters += vp.totalVoters;
+      acc.voted += vp.votedCount;
+      return acc;
+    }, { elections: new Set<string>(), votes: 0, voters: 0, voted: 0 });
+
+    return {
+      elections: agg.elections.size,
+      votingPoints: votingPoints.length,
+      voters: agg.voters,
+      votes: agg.votes,
+      participation: agg.voters > 0 ? Number(((agg.voted / agg.voters) * 100).toFixed(2)) : 0,
+    };
+  };
+
+  const setupRealtimeChannels = () => {
+    // Limpiar canales anteriores si existen
+    channelsRef.current.forEach((ch) => supabase.removeChannel(ch));
+    channelsRef.current = [];
+
+    // Canal 1: Cambios en planillas (slates) → votos en tiempo real
+    const slatesChannel = supabase
+      .channel('admin-slates-' + Date.now())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'slates' }, (payload) => {
+        console.log('🔔 Slate change', payload.eventType);
         setStats((prev) => {
           if (!prev) return prev;
-          const updated = { ...prev };
           let changed = false;
 
-          updated.votingPoints = prev.votingPoints.map((vp) => {
+          const nextVPs = prev.votingPoints.map((vp) => {
             const newSlate = payload.new as any;
             const slateIdx = vp.slates.findIndex((s) => s.id === newSlate?.id);
 
-            // Update existing slate
             if (slateIdx >= 0) {
               const nextSlates = [...vp.slates];
               nextSlates[slateIdx] = {
@@ -161,12 +193,10 @@ export default function ReportsPage() {
                 name: newSlate?.name ?? nextSlates[slateIdx].name,
                 description: newSlate?.description ?? nextSlates[slateIdx].description,
               };
-              const totalVotes = nextSlates.reduce((a, s) => a + (s.vote_count || 0), 0);
               changed = true;
-              return { ...vp, slates: nextSlates, totalVotes };
+              return { ...vp, slates: nextSlates, totalVotes: nextSlates.reduce((a, s) => a + (s.vote_count || 0), 0) };
             }
 
-            // Insert new slate for the matching voting point
             if (newSlate?.voting_point_id === vp.id) {
               const nextSlates = [...vp.slates, {
                 id: newSlate.id,
@@ -174,43 +204,117 @@ export default function ReportsPage() {
                 description: newSlate.description,
                 vote_count: newSlate.vote_count ?? 0,
               }];
-              const totalVotes = nextSlates.reduce((a, s) => a + (s.vote_count || 0), 0);
               changed = true;
-              return { ...vp, slates: nextSlates, totalVotes };
+              return { ...vp, slates: nextSlates, totalVotes: nextSlates.reduce((a, s) => a + (s.vote_count || 0), 0) };
             }
 
             return vp;
           });
 
           if (!changed) return prev;
-
-          const totals = updated.votingPoints.reduce((acc, vp) => {
-            if (vp.election?.id) acc.elections.add(vp.election.id);
-            acc.votes += vp.totalVotes;
-            acc.voters += vp.totalVoters;
-            acc.voted += vp.votedCount;
-            return acc;
-          }, { elections: new Set<string>(), votes: 0, voters: 0, voted: 0 });
-
-          return {
-            ...updated,
-            totals: {
-              elections: totals.elections.size,
-              votingPoints: updated.votingPoints.length,
-              voters: totals.voters,
-              votes: totals.votes,
-              participation: totals.voters > 0 ? Number(((totals.voted / totals.voters) * 100).toFixed(2)) : 0,
-            },
-          };
+          return { ...prev, votingPoints: nextVPs, totals: recalcTotals(nextVPs) };
         });
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log('📡 Slates subscription:', status);
+      });
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // Canal 2: Cambios en votantes (voters) → participación en tiempo real
+    const votersChannel = supabase
+      .channel('admin-voters-' + Date.now())
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'voters' }, (payload) => {
+        console.log('🔔 Voter change', payload.eventType);
+        setStats((prev) => {
+          if (!prev) return prev;
+          const updatedVoter = payload.new as any;
+          const votingPointId = updatedVoter.voting_point_id;
+          if (!votingPointId) return prev;
+
+          let changed = false;
+          const nextVPs = prev.votingPoints.map((vp) => {
+            if (vp.id === votingPointId) {
+              const wasVoted = (payload.old as any)?.has_voted;
+              const isVoted = updatedVoter.has_voted;
+              if (wasVoted !== isVoted) {
+                const votedCount = isVoted ? vp.votedCount + 1 : Math.max(0, vp.votedCount - 1);
+                changed = true;
+                return { ...vp, votedCount };
+              }
+            }
+            return vp;
+          });
+
+          if (!changed) return prev;
+          return { ...prev, votingPoints: nextVPs, totals: recalcTotals(nextVPs) };
+        });
+      })
+      .subscribe((status) => {
+        console.log('📡 Voters subscription:', status);
+      });
+
+    // Canal 3: Cambios en elecciones
+    const electionsChannel = supabase
+      .channel('admin-elections-' + Date.now())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'elections' }, (payload) => {
+        console.log('🔔 Election change', payload.eventType);
+        setStats((prev) => {
+          if (!prev) return prev;
+          const updatedElection = payload.new as any;
+          let changed = false;
+          const nextVPs = prev.votingPoints.map((vp) => {
+            if (vp.election?.id === updatedElection?.id) {
+              changed = true;
+              return {
+                ...vp,
+                election: {
+                  ...vp.election,
+                  title: updatedElection.title ?? vp.election.title,
+                  is_active: updatedElection.is_active ?? vp.election.is_active,
+                  start_date: updatedElection.start_date ?? vp.election.start_date,
+                  end_date: updatedElection.end_date ?? vp.election.end_date,
+                }
+              };
+            }
+            return vp;
+          });
+          if (!changed) return prev;
+          return { ...prev, votingPoints: nextVPs };
+        });
+      })
+      .subscribe((status) => {
+        console.log('📡 Elections subscription:', status);
+      });
+
+    // Canal 4: Cambios en puntos de votación
+    const votingPointsChannel = supabase
+      .channel('admin-vps-' + Date.now())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'voting_points' }, (payload) => {
+        console.log('🔔 Voting point change', payload.eventType);
+        if (payload.eventType === 'INSERT' || payload.eventType === 'DELETE') {
+          loadStats();
+        } else if (payload.eventType === 'UPDATE') {
+          setStats((prev) => {
+            if (!prev) return prev;
+            const updatedVP = payload.new as any;
+            let changed = false;
+            const nextVPs = prev.votingPoints.map((vp) => {
+              if (vp.id === updatedVP?.id) {
+                changed = true;
+                return { ...vp, name: updatedVP.name ?? vp.name, location: updatedVP.location ?? vp.location };
+              }
+              return vp;
+            });
+            if (!changed) return prev;
+            return { ...prev, votingPoints: nextVPs };
+          });
+        }
+      })
+      .subscribe((status) => {
+        console.log('📡 Voting Points subscription:', status);
+      });
+
+    channelsRef.current = [slatesChannel, votersChannel, electionsChannel, votingPointsChannel];
+  };
 
   const loadStats = async () => {
     try {
@@ -224,6 +328,9 @@ export default function ReportsPage() {
         return;
       }
       setStats(json.data);
+
+      // Configurar suscripciones en tiempo real DESPUÉS de cargar datos
+      setupRealtimeChannels();
     } catch (err) {
       setError('No se pudieron cargar las estadísticas');
       setStats(null);

@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import type { ApiResponse } from '@/lib/types/database.types';
 
+export const dynamic = 'force-dynamic';
+
 // POST - Upload candidate photo to Supabase Storage
 export async function POST(request: NextRequest) {
   try {

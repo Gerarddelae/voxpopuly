@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { ApiResponse } from '@/lib/types/database.types';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 
+export const dynamic = 'force-dynamic';
+
 // GET - Listar usuarios huérfanos (en auth.users sin perfil)
 export async function GET(request: NextRequest) {
   try {
