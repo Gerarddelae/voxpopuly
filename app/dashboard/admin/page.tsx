@@ -12,7 +12,8 @@ import {
   TrendingUp, 
   Calendar,
   ChevronRight,
-  BarChart
+  BarChart,
+  RefreshCw
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -26,10 +27,19 @@ export default function AdminPage() {
   });
   const [recentElections, setRecentElections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState<boolean>(true);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
 
   useEffect(() => {
     loadDashboardData();
   }, []);
+
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const id = setInterval(() => loadDashboardData(), 30000);
+    return () => clearInterval(id);
+  }, [autoRefresh]);
 
   const loadDashboardData = async () => {
     try {
@@ -51,26 +61,33 @@ export default function AdminPage() {
           totalVotes: totals?.votes ?? prev.totalVotes,
           participation: totals?.participation ?? 0,
           voters: totals?.voters ?? 0,
+          activeElections: totals?.activeElections ?? prev.activeElections,
         }));
       }
 
       if (electionsJson?.success) {
         const elections = electionsJson.data || [];
-        const now = new Date();
-        const active = elections.filter((e: any) => {
-          const start = new Date(e.start_date);
-          const end = new Date(e.end_date);
-          return e.is_active && now >= start && now <= end;
-        });
 
+        // Use server-side counts (already set from statsJson above)
+        // Only update totalElections and recentElections list here
         setStats((prev) => ({
           ...prev,
           totalElections: prev.totalElections || elections.length,
-          activeElections: active.length,
         }));
 
         setRecentElections(elections.slice(0, 5));
       }
+
+      // load recent activity (non-blocking)
+      try {
+        const actRes = await fetch('/api/admin/activity');
+        const actJson = await actRes.json();
+        setRecentActivity(actJson?.data || []);
+      } catch (err) {
+        setRecentActivity([]);
+      }
+
+      setLastUpdated(new Date());
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
@@ -79,32 +96,46 @@ export default function AdminPage() {
   };
 
   const getElectionStatus = (election: any) => {
-    const now = new Date();
-    const start = new Date(election.start_date);
-    const end = new Date(election.end_date);
+    const nowTs = Date.now();
+    const startTs = election.start_date ? Date.parse(election.start_date) : NaN;
+    const endTs = election.end_date ? Date.parse(election.end_date) : NaN;
 
-    if (!election.is_active) {
-      return { label: 'Inactiva', variant: 'secondary' as const };
-    }
-    if (now < start) {
-      return { label: 'Próxima', variant: 'default' as const };
-    }
-    if (now >= start && now <= end) {
-      return { label: 'En curso', variant: 'default' as const };
-    }
-    return { label: 'Finalizada', variant: 'secondary' as const };
+    const normalizeIsActive = (v: any) => {
+      if (v === true) return true;
+      if (v === false) return false;
+      if (v === 't' || v === 'true' || v === '1' || v === 1) return true;
+      return false;
+    };
+
+    const isActiveFlag = normalizeIsActive(election.is_active);
+    const withinDates = !Number.isNaN(startTs) && !Number.isNaN(endTs) && nowTs >= startTs && nowTs <= endTs;
+
+    if (!isActiveFlag) return { label: 'Inactiva', variant: 'secondary' as const };
+    if (!withinDates) return { label: 'Finalizada', variant: 'secondary' as const };
+    return { label: 'En curso', variant: 'default' as const };
   };
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">Dashboard Administrativo</h2>
-        <p className="text-muted-foreground">
-          Vista general del sistema de votación
-        </p>
+        <div className="flex items-start gap-4">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">Dashboard Administrativo</h2>
+            <p className="text-muted-foreground">Vista general del sistema de votación</p>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <Button size="sm" variant="ghost" onClick={() => loadDashboardData()}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refrescar
+            </Button>
+            <Button size="sm" variant={autoRefresh ? 'default' : 'outline'} onClick={() => setAutoRefresh(!autoRefresh)}>
+              {autoRefresh ? 'Auto-actualización' : 'Auto off'}
+            </Button>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">{lastUpdated ? `Última actualización: ${lastUpdated.toLocaleString()}` : 'Sin actualización'}</p>
       </div>
-
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -277,6 +308,36 @@ export default function AdminPage() {
                   </div>
                 );
               })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Recent Activity */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Actividad Reciente</CardTitle>
+              <CardDescription>Acciones recientes y alertas</CardDescription>
+            </div>
+            <Button size="sm" variant="ghost" onClick={() => loadDashboardData()}>
+              Actualizar
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {recentActivity.length === 0 ? (
+            <p className="text-muted-foreground">Sin actividad reciente</p>
+          ) : (
+            <div className="space-y-2">
+              {recentActivity.slice(0, 8).map((item: any, idx: number) => (
+                <div key={idx} className="text-sm">
+                  <div className="font-medium">{item.title || item.type || 'Actividad'}</div>
+                  <div className="text-xs text-muted-foreground">{item.message || item.detail || ''}</div>
+                  <div className="text-xs text-muted-foreground">{item.timestamp ? new Date(item.timestamp).toLocaleString() : ''}</div>
+                </div>
+              ))}
             </div>
           )}
         </CardContent>

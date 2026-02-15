@@ -19,15 +19,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { UserCircle, Users, Shield, Vote, UserPlus, ChevronDown } from 'lucide-react';
+import { UserCircle, Users, Shield, Vote, UserPlus, ChevronDown, FileUp } from 'lucide-react';
 import { DelegateFormDialog } from '@/components/admin/delegate-form-dialog';
 import { VoterFormDialog } from '@/components/admin/voter-form-dialog';
+import { VoterBulkUploadDialog } from '@/components/admin/voter-bulk-upload-dialog';
 
 export default function UsersPage() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [delegateFormOpen, setDelegateFormOpen] = useState(false);
   const [voterFormOpen, setVoterFormOpen] = useState(false);
+  const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     admins: 0,
@@ -98,6 +100,10 @@ export default function UsersPage() {
             <DropdownMenuItem onClick={() => setVoterFormOpen(true)}>
               <Vote className="mr-2 h-4 w-4" />
               Crear Votante
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setBulkUploadOpen(true)}>
+              <FileUp className="mr-2 h-4 w-4" />
+              Carga Masiva CSV
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -182,6 +188,10 @@ export default function UsersPage() {
                     <Vote className="mr-2 h-4 w-4" />
                     Crear Votante
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setBulkUploadOpen(true)}>
+                    <FileUp className="mr-2 h-4 w-4" />
+                    Carga Masiva CSV
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -226,6 +236,15 @@ export default function UsersPage() {
         onOpenChange={setVoterFormOpen}
         onSuccess={() => {
           setVoterFormOpen(false);
+          loadProfiles();
+        }}
+      />
+
+      <VoterBulkUploadDialog
+        open={bulkUploadOpen}
+        onOpenChange={setBulkUploadOpen}
+        onSuccess={() => {
+          setBulkUploadOpen(false);
           loadProfiles();
         }}
       />

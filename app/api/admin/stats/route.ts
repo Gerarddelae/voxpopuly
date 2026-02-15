@@ -133,15 +133,34 @@ export async function GET(request: NextRequest) {
 
     const payload: StatsPayload = {
       totals: {
-        elections: electionIds.size,
+          elections: electionIds.size,
         votingPoints: votingPoints.length,
         voters: totalVoters,
         votes: totalVotes,
-        participation: totalVoters > 0 ? Number(((totalVoted / totalVoters) * 100).toFixed(2)) : 0,
+          participation: totalVoters > 0 ? Number(((totalVoted / totalVoters) * 100).toFixed(2)) : 0,
       },
       votingPoints,
       generatedAt: new Date().toISOString(),
     };
+
+      // Count active elections directly from the elections table
+      const { data: allElections } = await service
+        .from('elections')
+        .select('id, is_active')
+        .eq('is_active', true);
+
+      const activeElectionsCount = allElections?.length ?? 0;
+
+      // Also update total elections count from the elections table directly
+      const { count: totalElectionsCount } = await service
+        .from('elections')
+        .select('id', { count: 'exact', head: true });
+
+      payload.totals = {
+        ...payload.totals,
+        elections: totalElectionsCount ?? electionIds.size,
+        activeElections: activeElectionsCount,
+      };
 
     const format = request.nextUrl.searchParams.get('format');
     if (format === 'csv') {
