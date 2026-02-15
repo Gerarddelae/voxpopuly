@@ -123,7 +123,8 @@ export async function GET() {
         members:slate_members (
           id,
           full_name,
-          role
+          role,
+          photo_url
         )
       `)
       .eq('voting_point_id', voterRecord.voting_point_id)

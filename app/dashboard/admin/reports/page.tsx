@@ -79,10 +79,10 @@ type StatsPayload = {
 };
 
 // Custom tooltips
-function VotesCustomTooltip({ active, payload, label }: TooltipProps<number, string>) {
+function VotesCustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
 
-  const votos = payload.find((p) => p.dataKey === 'votos')?.value || 0;
+  const votos = payload.find((p: any) => p.dataKey === 'votos')?.value || 0;
 
   return (
     <div className="bg-popover border border-border rounded-lg p-3 shadow-lg">
@@ -96,10 +96,10 @@ function VotesCustomTooltip({ active, payload, label }: TooltipProps<number, str
   );
 }
 
-function ParticipationCustomTooltip({ active, payload, label }: TooltipProps<number, string>) {
+function ParticipationCustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
 
-  const participacion = payload.find((p) => p.dataKey === 'participacion')?.value || 0;
+  const participacion = payload.find((p: any) => p.dataKey === 'participacion')?.value || 0;
 
   return (
     <div className="bg-popover border border-border rounded-lg p-3 shadow-lg">
@@ -113,10 +113,10 @@ function ParticipationCustomTooltip({ active, payload, label }: TooltipProps<num
   );
 }
 
-function TopSlatesCustomTooltip({ active, payload, label }: TooltipProps<number, string>) {
+function TopSlatesCustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
 
-  const votos = payload.find((p) => p.dataKey === 'vote_count')?.value || 0;
+  const votos = payload.find((p: any) => p.dataKey === 'vote_count')?.value || 0;
 
   return (
     <div className="bg-popover border border-border rounded-lg p-3 shadow-lg">

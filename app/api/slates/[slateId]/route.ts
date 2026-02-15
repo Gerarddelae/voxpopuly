@@ -32,6 +32,7 @@ export async function GET(
           id,
           full_name,
           role,
+          photo_url,
           created_at
         ),
         voting_points (
@@ -177,6 +178,7 @@ export async function PUT(
           slate_id: slateId,
           full_name: member.full_name,
           role: member.role || null,
+          photo_url: member.photo_url || null,
         }));
 
         const { error: membersError } = await supabase

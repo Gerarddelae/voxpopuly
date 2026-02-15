@@ -165,7 +165,6 @@ export function LeadSourcesChart() {
                 paddingAngle={2}
                 dataKey="value"
                 strokeWidth={0}
-                activeIndex={activeIndex !== null ? activeIndex : undefined}
                 activeShape={renderActiveShape}
                 onMouseEnter={onPieEnter}
                 onMouseLeave={onPieLeave}

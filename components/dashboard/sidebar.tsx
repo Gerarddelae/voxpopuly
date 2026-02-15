@@ -154,9 +154,18 @@ export function DashboardSidebar({
     <Sidebar collapsible="offcanvas" className="lg:border-r-0!" {...props}>
       <SidebarHeader className="p-3 sm:p-4 lg:p-5 pb-0">
         <div className="flex items-center gap-2">
-                    className="h-9 sm:h-[38px]"
-          {/* Help Center and Settings removed from sidebar footer */}
-                  >
+          <Atom className="size-5 sm:size-6 text-primary" />
+          <span className="font-semibold text-base sm:text-lg">VoxPopuly</span>
+        </div>
+      </SidebarHeader>
+
+      <SidebarContent className="p-3 sm:p-4 lg:p-5">
+        <SidebarGroup className="p-0">
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {menuItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
                     <Link href={item.href}>
                       <item.icon
                         className={`size-4 sm:size-5 text-muted-foreground`}
@@ -197,6 +206,10 @@ export function DashboardSidebar({
                 <SidebarMenu className="mt-2">
                   {folders.map((folder) => (
                     <SidebarMenuItem key={folder.name}>
+                      <SidebarMenuButton asChild>
+                        <Link href="#">
+                          <Folder className="size-4 sm:size-5 text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground">
                             {folder.name}
                           </span>
                           {folder.hasNotification && (

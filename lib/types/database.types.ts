@@ -56,6 +56,7 @@ export interface SlateMember {
   slate_id: string;
   full_name: string;
   role: string | null;
+  photo_url: string | null;
   created_at: string;
 }
 
@@ -114,6 +115,8 @@ export interface SlateFormData {
 export interface SlateMemberFormData {
   full_name: string;
   role?: string;
+  photo_url?: string;
+  photoFile?: File;
 }
 
 // =========================================================

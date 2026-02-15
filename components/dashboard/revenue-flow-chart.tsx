@@ -101,11 +101,11 @@ function CustomTooltip({
   active,
   payload,
   label,
-}: TooltipProps<number, string>) {
+}: any) {
   if (!active || !payload?.length) return null;
 
-  const thisYear = payload.find((p) => p.dataKey === "thisYear")?.value || 0;
-  const prevYear = payload.find((p) => p.dataKey === "prevYear")?.value || 0;
+  const thisYear = payload.find((p: any) => p.dataKey === "thisYear")?.value || 0;
+  const prevYear = payload.find((p: any) => p.dataKey === "prevYear")?.value || 0;
   const diff = Number(thisYear) - Number(prevYear);
   const percentage = prevYear
     ? Math.round((diff / Number(prevYear)) * 100)

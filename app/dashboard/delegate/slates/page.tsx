@@ -15,6 +15,7 @@ interface Slate {
     id: string;
     full_name: string;
     role?: string | null;
+    photo_url?: string | null;
   }[];
 }
 
@@ -78,9 +79,17 @@ export default function DelegateSlatesPage() {
                     <div className="flex items-center gap-2 mt-2 flex-wrap">
                       {slate.members.slice(0, 3).map((m) => (
                         <div key={m.id} className="flex items-center gap-2 bg-muted/10 px-2 py-1 rounded-md">
-                          <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold">
-                            {getInitials(m.full_name)}
-                          </div>
+                          {m.photo_url ? (
+                            <img
+                              src={m.photo_url}
+                              alt={m.full_name}
+                              className="h-7 w-7 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold">
+                              {getInitials(m.full_name)}
+                            </div>
+                          )}
                           <div className="min-w-0">
                             <div className="text-sm truncate font-medium">{m.full_name}</div>
                             {m.role && <div className="text-xs text-muted-foreground">{m.role}</div>}

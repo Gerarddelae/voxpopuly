@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, MapPin, User, Users, Edit, Trash2 } from 'lucide-react';
+import { Plus, MapPin, User, Users, Edit, Trash2, UserCircle } from 'lucide-react';
 import { SlateFormDialog } from '@/components/admin/slate-form-dialog';
 import { SlateEditDialog } from '@/components/admin/slate-edit-dialog';
 import { VotingPointEditDialog } from '@/components/admin/voting-point-edit-dialog';
@@ -250,9 +250,20 @@ export function VotingPointDetailsDialog({
                               {slate.members.map((member) => (
                                 <div
                                   key={member.id}
-                                  className="flex items-center justify-between text-sm p-2 rounded-md bg-muted/50"
+                                  className="flex items-center gap-3 text-sm p-2 rounded-md bg-muted/50"
                                 >
-                                  <span className="font-medium">{member.full_name}</span>
+                                  {member.photo_url ? (
+                                    <img
+                                      src={member.photo_url}
+                                      alt={member.full_name}
+                                      className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                                    />
+                                  ) : (
+                                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                                      <UserCircle className="h-5 w-5 text-muted-foreground/50" />
+                                    </div>
+                                  )}
+                                  <span className="font-medium flex-1">{member.full_name}</span>
                                   {member.role && (
                                     <span className="text-muted-foreground">{member.role}</span>
                                   )}

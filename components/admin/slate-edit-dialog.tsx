@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { SlateFormData, SlateMemberFormData, SlateWithDetails } from '@/lib/types/database.types';
 import {
   Dialog,
@@ -13,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Plus, X } from 'lucide-react';
+import { Loader2, Plus, X, Camera, UserCircle } from 'lucide-react';
 
 interface SlateEditDialogProps {
   open: boolean;
@@ -37,6 +37,9 @@ export function SlateEditDialog({
   const [members, setMembers] = useState<SlateMemberFormData[]>([
     { full_name: '', role: '' },
   ]);
+  const [photoFiles, setPhotoFiles] = useState<(File | null)[]>([null]);
+  const [photoPreviews, setPhotoPreviews] = useState<(string | null)[]>([null]);
+  const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Cargar datos frescos de la plancha
   const loadSlateData = useCallback(async () => {
@@ -66,12 +69,17 @@ export function SlateEditDialog({
           const mappedMembers = slateData.members.map((m: any) => ({
             full_name: m.full_name || '',
             role: m.role || '',
+            photo_url: m.photo_url || '',
           }));
           console.log('✨ Miembros mapeados:', mappedMembers);
           setMembers(mappedMembers);
+          setPhotoFiles(new Array(mappedMembers.length).fill(null));
+          setPhotoPreviews(mappedMembers.map((m: any) => m.photo_url || null));
         } else {
           console.log('⚠️ No se encontraron miembros, usando array vacío');
           setMembers([{ full_name: '', role: '' }]);
+          setPhotoFiles([null]);
+          setPhotoPreviews([null]);
         }
       } else {
         console.error('❌ Error en la respuesta:', result);
@@ -92,10 +100,55 @@ export function SlateEditDialog({
 
   const handleAddMember = () => {
     setMembers([...members, { full_name: '', role: '' }]);
+    setPhotoFiles([...photoFiles, null]);
+    setPhotoPreviews([...photoPreviews, null]);
   };
 
   const handleRemoveMember = (index: number) => {
     setMembers(members.filter((_, i) => i !== index));
+    setPhotoFiles(photoFiles.filter((_, i) => i !== index));
+    // Only revoke if it's a blob URL (new upload preview)
+    if (photoPreviews[index] && photoPreviews[index]!.startsWith('blob:')) {
+      URL.revokeObjectURL(photoPreviews[index]!);
+    }
+    setPhotoPreviews(photoPreviews.filter((_, i) => i !== index));
+  };
+
+  const handlePhotoChange = (index: number, file: File | null) => {
+    const newPhotoFiles = [...photoFiles];
+    const newPreviews = [...photoPreviews];
+    
+    // Revoke previous blob preview URL
+    if (newPreviews[index] && newPreviews[index]!.startsWith('blob:')) {
+      URL.revokeObjectURL(newPreviews[index]!);
+    }
+    
+    newPhotoFiles[index] = file;
+    newPreviews[index] = file ? URL.createObjectURL(file) : null;
+    setPhotoFiles(newPhotoFiles);
+    setPhotoPreviews(newPreviews);
+  };
+
+  const uploadPhoto = async (file: File): Promise<string | null> => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch('/api/upload/candidate-photo', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        return result.data.url;
+      }
+      console.error('Error uploading photo:', result.error);
+      return null;
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      return null;
+    }
   };
 
   const handleMemberChange = (
@@ -117,14 +170,32 @@ export function SlateEditDialog({
 
     try {
       // Filtrar miembros vacíos
-      const validMembers = members.filter((m) => m.full_name.trim() !== '');
+      const validMembersWithIndex = members
+        .map((m, i) => ({ member: m, index: i }))
+        .filter(({ member }) => member.full_name.trim() !== '');
+
+      // Upload new photos for valid members
+      const membersWithPhotos: SlateMemberFormData[] = await Promise.all(
+        validMembersWithIndex.map(async ({ member, index }) => {
+          let photo_url = member.photo_url;
+          if (photoFiles[index]) {
+            const url = await uploadPhoto(photoFiles[index]!);
+            if (url) photo_url = url;
+          }
+          return {
+            full_name: member.full_name,
+            role: member.role,
+            photo_url,
+          };
+        })
+      );
 
       const response = await fetch(`/api/slates/${slate.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          members: validMembers,
+          members: membersWithPhotos,
         }),
       });
 
@@ -212,8 +283,39 @@ export function SlateEditDialog({
                   {members.map((member, index) => (
                     <div
                       key={index}
-                      className="flex gap-2 items-start p-3 border rounded-lg bg-muted/50"
+                      className="flex gap-3 items-start p-3 border rounded-lg bg-muted/50"
                     >
+                      {/* Photo Upload */}
+                      <div className="flex flex-col items-center gap-1">
+                        <div
+                          className="relative w-16 h-16 rounded-full overflow-hidden bg-muted border-2 border-dashed border-muted-foreground/30 flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors"
+                          onClick={() => fileInputRefs.current[index]?.click()}
+                        >
+                          {photoPreviews[index] ? (
+                            <img
+                              src={photoPreviews[index]!}
+                              alt="Preview"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <UserCircle className="h-8 w-8 text-muted-foreground/50" />
+                          )}
+                          <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center">
+                            <Camera className="h-4 w-4 text-white opacity-0 hover:opacity-100" />
+                          </div>
+                        </div>
+                        <input
+                          ref={(el) => { fileInputRefs.current[index] = el; }}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,image/gif"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] || null;
+                            handlePhotoChange(index, file);
+                          }}
+                        />
+                        <span className="text-[10px] text-muted-foreground">Foto</span>
+                      </div>
                       <div className="flex-1 space-y-2">
                         <Input
                           placeholder="Nombre completo"

@@ -67,7 +67,7 @@ export async function GET() {
         name,
         description,
         vote_count,
-        slate_members ( id, full_name, role )
+        slate_members ( id, full_name, role, photo_url )
       `)
       .eq('voting_point_id', votingPoint.id)
       .order('name');

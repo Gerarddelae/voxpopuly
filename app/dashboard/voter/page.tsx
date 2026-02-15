@@ -13,8 +13,20 @@ import {
   Users, 
   Loader2,
   AlertCircle,
-  UserCheck
+  UserCheck,
+  UserCircle,
+  
 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
 
 interface VotingInfo {
   isAssigned: boolean;
@@ -34,6 +46,17 @@ export default function VoterPage() {
   const [selectedSlate, setSelectedSlate] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [voteSuccess, setVoteSuccess] = useState(false);
+  const [dialogSlate, setDialogSlate] = useState<any | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const openSlateDialog = (slate: any) => {
+    setDialogSlate(slate);
+    setDialogOpen(true);
+  };
+  const closeSlateDialog = () => {
+    setDialogSlate(null);
+    setDialogOpen(false);
+  };
 
   useEffect(() => {
     loadVotingInfo();
@@ -225,42 +248,45 @@ export default function VoterPage() {
       </div>
 
       {/* Resumen */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardContent className="pt-4 space-y-2">
-            <p className="text-xs text-muted-foreground">Punto de votación</p>
-            <div className="flex items-center gap-2 text-sm">
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-              <span className="font-semibold">{votingInfo.votingPoint?.name || 'No asignado'}</span>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Punto de votación</p>
+            <div className="flex items-start gap-2 text-sm">
+              <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <span className="font-semibold block">{votingInfo.votingPoint?.name || 'No asignado'}</span>
+                {votingInfo.votingPoint?.location && (
+                  <p className="text-xs text-muted-foreground mt-0.5">{votingInfo.votingPoint.location}</p>
+                )}
+              </div>
             </div>
-            {votingInfo.votingPoint?.location && (
-              <p className="text-sm text-muted-foreground">{votingInfo.votingPoint.location}</p>
-            )}
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="pt-4 space-y-2">
-            <p className="text-xs text-muted-foreground">Periodo</p>
-            <div className="flex items-center gap-2 text-sm">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Periodo</p>
+            <div className="flex items-start gap-2 text-sm">
+              <Calendar className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
               <span className="font-semibold">{period}</span>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="pt-4 space-y-3">
-            <div className="flex items-center gap-2 text-sm">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <span><strong>Planchas:</strong> {slates.length}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <Badge variant={votingInfo.election?.is_active ? 'default' : 'secondary'}>
+        <Card className="sm:col-span-2 lg:col-span-1">
+          <CardContent className="pt-4 space-y-2">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Estado</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={votingInfo.election?.is_active ? 'default' : 'secondary'} className="text-xs">
                 {electionStatus}
               </Badge>
-              <Badge variant={votingInfo.canVote ? 'default' : 'outline'}>
+              <Badge variant={votingInfo.canVote ? 'default' : 'outline'} className="text-xs">
                 {votingInfo.canVote ? 'Puedes votar' : 'No disponible'}
+              </Badge>
+              <Badge variant="outline" className="text-xs">
+                <Users className="h-3 w-3 mr-1" />
+                {slates.length} {slates.length === 1 ? 'plancha' : 'planchas'}
               </Badge>
             </div>
           </CardContent>
@@ -285,8 +311,9 @@ export default function VoterPage() {
       {/* Instrucciones */}
       <Alert>
         <Vote className="h-4 w-4" />
-        <AlertDescription>
-          <strong>Cómo votar:</strong> selecciona una plancha y confirma. El voto es anónimo. Si la elección está cerrada, podrás revisar la información pero no votar.
+        <AlertDescription className="text-sm">
+          <strong>Cómo votar:</strong> Selecciona una plancha haciendo clic en ella y luego confirma tu voto. 
+          El voto es completamente anónimo y no podrá ser modificado una vez confirmado.
         </AlertDescription>
       </Alert>
 
@@ -301,95 +328,188 @@ export default function VoterPage() {
         </Alert>
       ) : (
         <>
-          <div className="grid gap-4 md:grid-cols-2">
-            {slates.map((slate) => (
-              <Card
-                key={slate.id}
-                className={`transition-all ${
-                  canActuallyVote
-                    ? `cursor-pointer ${
-                        selectedSlate === slate.id
-                          ? 'border-primary ring-2 ring-primary'
-                          : 'hover:border-primary/50'
-                      }`
-                    : 'opacity-75 cursor-not-allowed'
-                }`}
-                onClick={() => canActuallyVote && setSelectedSlate(slate.id)}
-              >
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                      <CardTitle className="text-xl">{slate.name}</CardTitle>
-                      {slate.description && (
-                        <CardDescription className="mt-2">
-                          {slate.description}
-                        </CardDescription>
-                      )}
-                    </div>
-                    {selectedSlate === slate.id && canActuallyVote && (
-                      <CheckCircle2 className="h-6 w-6 text-primary flex-shrink-0" />
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-muted-foreground">
+                {slates.length} {slates.length === 1 ? 'plancha disponible' : 'planchas disponibles'}
+              </p>
+              {/* Removed bulk expand control to simplify UI and avoid confusion */}
+            </div>
+          </div>
+
+          {/* Dialog: detalle de plancha */}
+          <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeSlateDialog(); setDialogOpen(open); }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{dialogSlate?.name || 'Detalle de la plancha'}</DialogTitle>
+                <DialogDescription className="mb-2">{dialogSlate?.description}</DialogDescription>
+              </DialogHeader>
+              <div className="max-h-[60vh] overflow-y-auto space-y-2">
+                {(dialogSlate?.members || []).map((member: any) => (
+                  <div key={member.id} className="flex items-center gap-3 p-2 rounded-md bg-muted/50">
+                    {member.photo_url ? (
+                      <img src={member.photo_url} alt={member.full_name} className="w-10 h-10 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-muted-foreground/10 flex items-center justify-center">
+                        <UserCircle className="h-5 w-5 text-muted-foreground/50" />
+                      </div>
                     )}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{member.full_name}</div>
+                      {member.role && <div className="text-xs text-muted-foreground">{member.role}</div>}
+                    </div>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  {slate.members && slate.members.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-sm font-semibold flex items-center gap-2">
-                        <Users className="h-4 w-4" />
-                        Candidatos:
-                      </p>
-                      <div className="grid gap-2">
-                        {slate.members.map((member: any) => (
-                          <div
-                            key={member.id}
-                            className="flex items-center justify-between text-sm p-2 rounded-md bg-muted/50"
-                          >
-                            <span className="font-medium">{member.full_name}</span>
-                            {member.role && (
-                              <Badge variant="secondary" className="text-xs">
-                                {member.role}
-                              </Badge>
-                            )}
+                ))}
+              </div>
+              <DialogFooter>
+                <Button onClick={() => { if (dialogSlate) { setSelectedSlate(dialogSlate.id); } closeSlateDialog(); }}>
+                  Seleccionar plancha
+                </Button>
+                <DialogClose asChild>
+                  <Button variant="ghost">Cerrar</Button>
+                </DialogClose>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
+            {slates.map((slate) => {
+              const hasMembers = slate.members && slate.members.length > 0;
+              
+              return (
+                <Card
+                  key={slate.id}
+                  className={`transition-all flex flex-col ${
+                    canActuallyVote
+                      ? `${
+                          selectedSlate === slate.id
+                            ? 'border-primary ring-2 ring-primary shadow-lg'
+                            : 'hover:border-primary/50 hover:shadow-md'
+                        }`
+                      : 'opacity-75'
+                  }`}
+                >
+                  <CardHeader 
+                    className={`${canActuallyVote ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                    onClick={() => canActuallyVote && setSelectedSlate(slate.id)}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          {slate.name}
+                          {selectedSlate === slate.id && canActuallyVote && (
+                            <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
+                          )}
+                        </CardTitle>
+                        {slate.description && (
+                          <CardDescription className="mt-1.5 text-sm line-clamp-2">
+                            {slate.description}
+                          </CardDescription>
+                        )}
+                        {hasMembers && (
+                          <div className="flex items-center gap-2 mt-2">
+                            <Badge variant="outline" className="text-xs">
+                              <Users className="h-3 w-3 mr-1" />
+                              {slate.members.length} {slate.members.length === 1 ? 'candidato' : 'candidatos'}
+                            </Badge>
                           </div>
-                        ))}
+                        )}
                       </div>
                     </div>
+                  </CardHeader>
+
+                  {hasMembers && (
+                    <CardContent className="pt-2 flex-1">
+                      <div className="flex flex-col gap-2">
+                        <div className="flex flex-wrap gap-2 items-center">
+                          {slate.members.slice(0, 3).map((member: any) => (
+                            <div
+                              key={member.id}
+                              className="flex items-center gap-2 text-sm p-2 rounded-md bg-muted/50 hover:bg-muted transition-colors"
+                            >
+                              {member.photo_url ? (
+                                <img
+                                  src={member.photo_url}
+                                  alt={member.full_name}
+                                  className="w-9 h-9 rounded-full object-cover border-2 border-background shadow-sm flex-shrink-0"
+                                />
+                              ) : (
+                                <div className="w-9 h-9 rounded-full bg-muted-foreground/10 flex items-center justify-center flex-shrink-0 border-2 border-background">
+                                  <UserCircle className="h-5 w-5 text-muted-foreground/50" />
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <span className="font-medium block truncate text-sm">{member.full_name}</span>
+                                {member.role && (
+                                  <Badge variant="secondary" className="text-xs mt-0.5">
+                                    {member.role}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+
+                          {slate.members.length > 3 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="ml-1"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openSlateDialog(slate);
+                              }}
+                            >
+                              Ver {slate.members.length - 3} más
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
                   )}
-                </CardContent>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
 
           {/* Botón de confirmación */}
-          <div className="flex justify-center pt-4">
-            <Button
-              size="lg"
-              onClick={handleVote}
-              disabled={!canActuallyVote || !selectedSlate || submitting}
-              className="min-w-[200px]"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Registrando voto...
-                </>
-              ) : !votingInfo.canVote ? (
-                <>
-                  <Vote className="mr-2 h-5 w-5" />
-                  Votación no disponible
-                </>
-              ) : !selectedSlate ? (
-                <>
-                  <UserCheck className="mr-2 h-5 w-5" />
-                  Selecciona una plancha
-                </>
-              ) : (
-                <>
-                  <UserCheck className="mr-2 h-5 w-5" />
-                  Confirmar Voto
-                </>
+          <div className="sticky bottom-0 py-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t">
+            <div className="flex flex-col sm:flex-row gap-3 items-center justify-center">
+              {selectedSlate && canActuallyVote && (
+                <div className="text-sm text-muted-foreground text-center sm:text-left">
+                  Plancha seleccionada: <span className="font-semibold text-foreground">
+                    {slates.find(s => s.id === selectedSlate)?.name}
+                  </span>
+                </div>
               )}
-            </Button>
+              <Button
+                size="lg"
+                onClick={handleVote}
+                disabled={!canActuallyVote || !selectedSlate || submitting}
+                className="min-w-[200px] shadow-lg"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Registrando voto...
+                  </>
+                ) : !votingInfo.canVote ? (
+                  <>
+                    <Vote className="mr-2 h-5 w-5" />
+                    Votación no disponible
+                  </>
+                ) : !selectedSlate ? (
+                  <>
+                    <UserCheck className="mr-2 h-5 w-5" />
+                    Selecciona una plancha
+                  </>
+                ) : (
+                  <>
+                    <UserCheck className="mr-2 h-5 w-5" />
+                    Confirmar Voto
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </>
       )}

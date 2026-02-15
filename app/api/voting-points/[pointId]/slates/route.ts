@@ -92,6 +92,7 @@ export async function POST(
         slate_id: slate.id,
         full_name: member.full_name,
         role: member.role || null,
+        photo_url: member.photo_url || null,
       }));
 
       const { error: membersError } = await supabase
@@ -165,6 +166,7 @@ export async function GET(
           id,
           full_name,
           role,
+          photo_url,
           created_at
         )
       `)
