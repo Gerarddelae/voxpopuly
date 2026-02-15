@@ -154,23 +154,8 @@ export function DashboardSidebar({
     <Sidebar collapsible="offcanvas" className="lg:border-r-0!" {...props}>
       <SidebarHeader className="p-3 sm:p-4 lg:p-5 pb-0">
         <div className="flex items-center gap-2">
-          <span role="img" aria-label="megaphone" className="text-lg sm:text-xl">
-            📣
-          </span>
-          <span className="font-semibold text-base sm:text-lg">VoxPopuly</span>
-        </div>
-      </SidebarHeader>
-
-      <SidebarContent className="px-3 sm:px-4 lg:px-5">
-        <SidebarGroup className="p-0">
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={item.isActive}
                     className="h-9 sm:h-[38px]"
+          {/* Help Center and Settings removed from sidebar footer */}
                   >
                     <Link href={item.href}>
                       <item.icon
@@ -212,10 +197,6 @@ export function DashboardSidebar({
                 <SidebarMenu className="mt-2">
                   {folders.map((folder) => (
                     <SidebarMenuItem key={folder.name}>
-                      <SidebarMenuButton asChild className="h-9 sm:h-[38px]">
-                        <Link href="#">
-                          <Folder className="size-4 sm:size-5 text-muted-foreground" />
-                          <span className="flex-1 text-muted-foreground text-sm truncate">
                             {folder.name}
                           </span>
                           {folder.hasNotification && (
@@ -233,24 +214,7 @@ export function DashboardSidebar({
       </SidebarContent>
 
       <SidebarFooter className="px-3 sm:px-4 lg:px-5 pb-3 sm:pb-4 lg:pb-5">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild className="h-9 sm:h-[38px]">
-              <Link href="#">
-                <HelpCircle className="size-4 sm:size-5" />
-                <span className="text-sm">Help Center</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild className="h-9 sm:h-[38px]">
-              <Link href="#">
-                <Settings className="size-4 sm:size-5" />
-                <span className="text-sm">Settings</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        {/* Help Center and Settings removed from sidebar footer */}
 
         <Button variant="outline" className="w-full mt-2" asChild>
           <Link
@@ -285,18 +249,12 @@ export function DashboardSidebar({
             </div>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-[200px]">
-            <DropdownMenuItem>
-              <UserCircle className="size-4 mr-2" />
-              Profile
-            </DropdownMenuItem>
+            {/* Profile removed from dropdown */}
             <DropdownMenuItem>
               <CreditCard className="size-4 mr-2" />
               Billing
             </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Settings className="size-4 mr-2" />
-              Settings
-            </DropdownMenuItem>
+            {/* Settings removed from dropdown in sidebar */}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="text-destructive">
               <LogOut className="size-4 mr-2" />

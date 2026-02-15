@@ -163,7 +163,9 @@ export function ElectionDetailsDialog({
                         <p className="text-xs text-muted-foreground">Planchas totales</p>
                       </div>
                       <div className="space-y-1">
-                        <p className="text-2xl font-bold">0</p>
+                        <p className="text-2xl font-bold">
+                          {election.voting_points?.reduce((acc, vp) => acc + (vp.total_voters || 0), 0) || 0}
+                        </p>
                         <p className="text-xs text-muted-foreground">Votantes registrados</p>
                       </div>
                     </CardContent>

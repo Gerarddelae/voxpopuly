@@ -166,24 +166,7 @@ export function AdminSidebar({
       </SidebarContent>
 
       <SidebarFooter className="px-3 sm:px-4 lg:px-5 pb-3 sm:pb-4 lg:pb-5">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild className="h-9 sm:h-[38px]">
-              <Link href="/dashboard/admin/help">
-                <HelpCircle className="size-4 sm:size-5" />
-                <span className="text-sm">Help Center</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild className="h-9 sm:h-[38px]">
-              <Link href="/dashboard/admin/settings">
-                <Settings className="size-4 sm:size-5" />
-                <span className="text-sm">Settings</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        {/* Help Center and Settings removed from sidebar footer */}
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -207,14 +190,8 @@ export function AdminSidebar({
             </div>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-[200px]">
-            <DropdownMenuItem>
-              <UserCircle className="size-4 mr-2" />
-              Profile
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Settings className="size-4 mr-2" />
-              Settings
-            </DropdownMenuItem>
+            {/* Profile removed from dropdown */}
+            {/* Settings removed from dropdown in sidebar */}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="text-destructive">
               <LogOut className="size-4 mr-2" />

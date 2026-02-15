@@ -21,6 +21,8 @@ export default function AdminPage() {
     activeElections: 0,
     votingPoints: 0,
     totalVotes: 0,
+    participation: 0,
+    voters: 0,
   });
   const [recentElections, setRecentElections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,25 +34,40 @@ export default function AdminPage() {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/elections');
-      const result = await response.json();
-      
-      if (result.success) {
-        const elections = result.data;
+      const [statsRes, electionsRes] = await Promise.all([
+        fetch('/api/admin/stats'),
+        fetch('/api/elections'),
+      ]);
+
+      const statsJson = await statsRes.json();
+      const electionsJson = await electionsRes.json();
+
+      if (statsJson?.success) {
+        const totals = statsJson.data?.totals;
+        setStats((prev) => ({
+          ...prev,
+          totalElections: totals?.elections ?? prev.totalElections,
+          votingPoints: totals?.votingPoints ?? prev.votingPoints,
+          totalVotes: totals?.votes ?? prev.totalVotes,
+          participation: totals?.participation ?? 0,
+          voters: totals?.voters ?? 0,
+        }));
+      }
+
+      if (electionsJson?.success) {
+        const elections = electionsJson.data || [];
         const now = new Date();
-        
         const active = elections.filter((e: any) => {
           const start = new Date(e.start_date);
           const end = new Date(e.end_date);
           return e.is_active && now >= start && now <= end;
         });
 
-        setStats({
-          totalElections: elections.length,
+        setStats((prev) => ({
+          ...prev,
+          totalElections: prev.totalElections || elections.length,
           activeElections: active.length,
-          votingPoints: 0, // Se calculará después
-          totalVotes: 0,
-        });
+        }));
 
         setRecentElections(elections.slice(0, 5));
       }
@@ -135,10 +152,8 @@ export default function AdminPage() {
             <BarChart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0%</div>
-            <p className="text-xs text-muted-foreground">
-              Tasa promedio
-            </p>
+            <div className="text-2xl font-bold">{stats.participation}%</div>
+            <p className="text-xs text-muted-foreground">Sobre {stats.voters} votantes</p>
           </CardContent>
         </Card>
       </div>

@@ -59,14 +59,15 @@ export async function GET() {
       return NextResponse.json<ApiResponse>({ success: false, error: 'No tienes un punto de votación asignado' }, { status: 404 });
     }
 
-    // Obtener planchas del punto con conteo
+    // Obtener planchas del punto con conteo y miembros
     const { data: slates, error: slatesError } = await service
       .from('slates')
       .select(`
         id,
         name,
         description,
-        vote_count
+        vote_count,
+        slate_members ( id, full_name, role )
       `)
       .eq('voting_point_id', votingPoint.id)
       .order('name');
@@ -78,11 +79,20 @@ export async function GET() {
 
     const totalVotes = (slates || []).reduce((acc, s) => acc + (s.vote_count || 0), 0);
 
+    // Mapear slate_members a members para compatibilidad con front-end
+    const slatesWithMembers = (slates || []).map((s: any) => ({
+      id: s.id,
+      name: s.name,
+      description: s.description,
+      vote_count: s.vote_count,
+      members: s.slate_members || [],
+    }));
+
     return NextResponse.json<ApiResponse>({
       success: true,
       data: {
         votingPoint,
-        slates: slates || [],
+        slates: slatesWithMembers,
         totalVotes,
       }
     });
