@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { ApiResponse, Profile } from '@/lib/types/database.types';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 
-// GET - Obtener lista de delegados disponibles
+// GET - Obtener lista de votantes disponibles
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -32,15 +32,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Obtener todos los delegados
-    const { data: delegates, error } = await supabase
+    // Obtener todos los votantes
+    const { data: voters, error } = await supabase
       .from('profiles')
       .select('id, full_name, document, role, created_at, updated_at')
-      .eq('role', 'delegate')
+      .eq('role', 'voter')
       .order('full_name', { ascending: true });
 
     if (error) {
-      console.error('Error fetching delegates:', error);
+      console.error('Error fetching voters:', error);
       return NextResponse.json<ApiResponse>(
         { success: false, error: error.message },
         { status: 500 }
@@ -49,10 +49,10 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json<ApiResponse<Profile[]>>({
       success: true,
-      data: delegates || [],
+      data: voters || [],
     });
   } catch (error) {
-    console.error('GET /api/delegates error:', error);
+    console.error('GET /api/voters error:', error);
     return NextResponse.json<ApiResponse>(
       { success: false, error: 'Error interno del servidor' },
       { status: 500 }
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Crear un nuevo delegado
+// POST - Crear un nuevo votante
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
         .update({
           full_name,
           document,
-          role: 'delegate',
+          role: 'voter',
         })
         .eq('id', authData.user.id)
         .select()
@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
         console.error('Error updating auto-created profile:', updateError);
         await adminClient.auth.admin.deleteUser(authData.user.id);
         return NextResponse.json<ApiResponse>(
-          { success: false, error: 'Error al actualizar perfil de delegado' },
+          { success: false, error: 'Error al actualizar perfil de votante' },
           { status: 500 }
         );
       }
@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
           id: authData.user.id,
           full_name,
           document,
-          role: 'delegate',
+          role: 'voter',
         })
         .select()
         .single();
@@ -213,7 +213,7 @@ export async function POST(request: NextRequest) {
         console.error('Error creating profile:', profileError);
         await adminClient.auth.admin.deleteUser(authData.user.id);
         return NextResponse.json<ApiResponse>(
-          { success: false, error: 'Error al crear perfil de delegado' },
+          { success: false, error: 'Error al crear perfil de votante' },
           { status: 500 }
         );
       }
@@ -232,7 +232,7 @@ export async function POST(request: NextRequest) {
     }, { status: 201 });
 
   } catch (error) {
-    console.error('POST /api/delegates error:', error);
+    console.error('POST /api/voters error:', error);
     return NextResponse.json<ApiResponse>(
       { success: false, error: 'Error interno del servidor' },
       { status: 500 }

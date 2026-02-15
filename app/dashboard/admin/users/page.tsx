@@ -13,13 +13,21 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { UserCircle, Users, Shield, Vote, UserPlus } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { UserCircle, Users, Shield, Vote, UserPlus, ChevronDown } from 'lucide-react';
 import { DelegateFormDialog } from '@/components/admin/delegate-form-dialog';
+import { VoterFormDialog } from '@/components/admin/voter-form-dialog';
 
 export default function UsersPage() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [delegateFormOpen, setDelegateFormOpen] = useState(false);
+  const [voterFormOpen, setVoterFormOpen] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     admins: 0,
@@ -74,10 +82,25 @@ export default function UsersPage() {
             Administra usuarios, roles y permisos
           </p>
         </div>
-        <Button onClick={() => setDelegateFormOpen(true)}>
-          <UserPlus className="mr-2 h-4 w-4" />
-          Nuevo Delegado
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button>
+              <UserPlus className="mr-2 h-4 w-4" />
+              Nuevo Usuario
+              <ChevronDown className="ml-2 h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setDelegateFormOpen(true)}>
+              <UserCircle className="mr-2 h-4 w-4" />
+              Crear Delegado
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setVoterFormOpen(true)}>
+              <Vote className="mr-2 h-4 w-4" />
+              Crear Votante
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Stats Cards */}
@@ -142,10 +165,25 @@ export default function UsersPage() {
               <p className="text-muted-foreground mb-4">
                 No hay usuarios registrados aún
               </p>
-              <Button onClick={() => setDelegateFormOpen(true)} variant="outline">
-                <UserPlus className="mr-2 h-4 w-4" />
-                Crear primer delegado
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Crear primer usuario
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center">
+                  <DropdownMenuItem onClick={() => setDelegateFormOpen(true)}>
+                    <UserCircle className="mr-2 h-4 w-4" />
+                    Crear Delegado
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setVoterFormOpen(true)}>
+                    <Vote className="mr-2 h-4 w-4" />
+                    Crear Votante
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           ) : (
             <Table>
@@ -179,6 +217,15 @@ export default function UsersPage() {
         onOpenChange={setDelegateFormOpen}
         onSuccess={() => {
           setDelegateFormOpen(false);
+          loadProfiles();
+        }}
+      />
+
+      <VoterFormDialog
+        open={voterFormOpen}
+        onOpenChange={setVoterFormOpen}
+        onSuccess={() => {
+          setVoterFormOpen(false);
           loadProfiles();
         }}
       />
