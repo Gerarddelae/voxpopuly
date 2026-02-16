@@ -49,4 +49,4 @@ fix-rls-policies.sql
 # supabase
 supabase/.temp/
 supabase/.branches/
-*.sql
+
