@@ -44,3 +44,9 @@ next-env.d.ts
 # database schema
 schema.txt
 fix-rls-policies.sql
+.temp/
+
+# supabase
+supabase/.temp/
+supabase/.branches/
+*.sql
