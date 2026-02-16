@@ -37,6 +37,7 @@ type StatVotingPoint = {
 type StatsPayload = {
   totals: {
     elections: number;
+    activeElections: number;
     votingPoints: number;
     voters: number;
     votes: number;
@@ -133,11 +134,12 @@ export async function GET(request: NextRequest) {
 
     const payload: StatsPayload = {
       totals: {
-          elections: electionIds.size,
+        elections: electionIds.size,
+        activeElections: 0,
         votingPoints: votingPoints.length,
         voters: totalVoters,
         votes: totalVotes,
-          participation: totalVoters > 0 ? Number(((totalVoted / totalVoters) * 100).toFixed(2)) : 0,
+        participation: totalVoters > 0 ? Number(((totalVoted / totalVoters) * 100).toFixed(2)) : 0,
       },
       votingPoints,
       generatedAt: new Date().toISOString(),
