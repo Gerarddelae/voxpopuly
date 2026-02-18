@@ -23,11 +23,13 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, UserPlus, Plus, Edit, Trash2, Users, UserCheck, UserCircle } from 'lucide-react';
+import { Loader2, UserPlus, Plus, Edit, Trash2, Users, UserCheck, UserCircle, Upload } from 'lucide-react';
 import { DelegateFormDialog } from './delegate-form-dialog';
 import { CandidateFormDialog } from './candidate-form-dialog';
 import { CandidateEditDialog } from './candidate-edit-dialog';
 import { VoterAssignInline } from './voter-assign-dialog';
+import { VoterFormDialog } from './voter-form-dialog';
+import { VoterBulkUploadDialog } from './voter-bulk-upload-dialog';
 
 interface VotingPointEditDialogProps {
   open: boolean;
@@ -50,6 +52,8 @@ export function VotingPointEditDialog({
   const [candidateFormOpen, setCandidateFormOpen] = useState(false);
   const [candidateEditOpen, setCandidateEditOpen] = useState(false);
   const [showAssignVoters, setShowAssignVoters] = useState(false);
+  const [voterFormOpen, setVoterFormOpen] = useState(false);
+  const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [activeTab, setActiveTab] = useState('info');
   const [formData, setFormData] = useState<VotingPointFormData>({
@@ -442,9 +446,21 @@ export function VotingPointEditDialog({
                     <p className="text-sm text-muted-foreground">
                       Gestiona los votantes autorizados para este punto de votación
                     </p>
+                  </div>
+
+                  {/* Action buttons group */}
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="outline" onClick={() => setVoterFormOpen(true)}>
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      Crear votante
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setBulkUploadOpen(true)}>
+                      <Upload className="mr-2 h-4 w-4" />
+                      Carga masiva
+                    </Button>
                     <Button size="sm" onClick={() => setShowAssignVoters(true)}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Asignar votantes
+                      <Users className="mr-2 h-4 w-4" />
+                      Asignar existentes
                     </Button>
                   </div>
 
@@ -452,13 +468,12 @@ export function VotingPointEditDialog({
                     <Card>
                       <CardContent className="py-12 text-center">
                         <UserCheck className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                        <p className="text-muted-foreground mb-4">
+                        <p className="text-muted-foreground mb-2">
                           No hay votantes asignados a este punto de votación
                         </p>
-                        <Button onClick={() => setShowAssignVoters(true)}>
-                          <Plus className="mr-2 h-4 w-4" />
-                          Asignar primeros votantes
-                        </Button>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Usa los botones de arriba para crear, cargar o asignar votantes
+                        </p>
                       </CardContent>
                     </Card>
                   ) : (
@@ -535,6 +550,26 @@ export function VotingPointEditDialog({
         onOpenChange={setCandidateEditOpen}
         candidate={selectedCandidate}
         onSuccess={handleCandidateEditSuccess}
+      />
+
+      <VoterFormDialog
+        open={voterFormOpen}
+        onOpenChange={setVoterFormOpen}
+        votingPointId={votingPoint.id}
+        onSuccess={() => {
+          setVoterFormOpen(false);
+          loadVoters();
+        }}
+      />
+
+      <VoterBulkUploadDialog
+        open={bulkUploadOpen}
+        onOpenChange={setBulkUploadOpen}
+        votingPointId={votingPoint.id}
+        onSuccess={() => {
+          setBulkUploadOpen(false);
+          loadVoters();
+        }}
       />
 
 

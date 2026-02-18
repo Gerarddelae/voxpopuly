@@ -47,6 +47,7 @@ interface VoterBulkUploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  votingPointId?: string;
 }
 
 interface Election {
@@ -93,6 +94,7 @@ export function VoterBulkUploadDialog({
   open,
   onOpenChange,
   onSuccess,
+  votingPointId: fixedVotingPointId,
 }: VoterBulkUploadDialogProps) {
   const [step, setStep] = useState<Step>('config');
   const [loading, setLoading] = useState(false);
@@ -118,9 +120,14 @@ export function VoterBulkUploadDialog({
 
   useEffect(() => {
     if (open) {
-      loadElections();
+      if (fixedVotingPointId) {
+        // When votingPointId is provided, skip election/point selection
+        setSelectedVotingPoint(fixedVotingPointId);
+      } else {
+        loadElections();
+      }
     }
-  }, [open]);
+  }, [open, fixedVotingPointId]);
 
   useEffect(() => {
     if (selectedElection) {
@@ -336,8 +343,10 @@ export function VoterBulkUploadDialog({
     // Reset
     setStep('config');
     setError('');
-    setSelectedElection('');
-    setSelectedVotingPoint('');
+    if (!fixedVotingPointId) {
+      setSelectedElection('');
+      setSelectedVotingPoint('');
+    }
     setParsedVoters([]);
     setFileName('');
     setResult(null);
@@ -378,73 +387,78 @@ export function VoterBulkUploadDialog({
         {/* STEP 1: Config */}
         {step === 'config' && (
           <div className="space-y-4 py-2">
-            {/* Seleccionar elección */}
-            <div className="space-y-2">
-              <Label htmlFor="bulk-election">Elección</Label>
-              <Select
-                value={selectedElection}
-                onValueChange={setSelectedElection}
-                disabled={loadingElections}
-              >
-                <SelectTrigger id="bulk-election">
-                  <SelectValue
-                    placeholder={loadingElections ? 'Cargando...' : 'Seleccionar elección'}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {elections.map((election) => (
-                    <SelectItem key={election.id} value={election.id}>
-                      {election.title}
-                      {election.is_active ? ' (Activa)' : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Election/Point selection - only when no fixedVotingPointId */}
+            {!fixedVotingPointId && (
+              <>
+                {/* Seleccionar elección */}
+                <div className="space-y-2">
+                  <Label htmlFor="bulk-election">Elección</Label>
+                  <Select
+                    value={selectedElection}
+                    onValueChange={setSelectedElection}
+                    disabled={loadingElections}
+                  >
+                    <SelectTrigger id="bulk-election">
+                      <SelectValue
+                        placeholder={loadingElections ? 'Cargando...' : 'Seleccionar elección'}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {elections.map((election) => (
+                        <SelectItem key={election.id} value={election.id}>
+                          {election.title}
+                          {election.is_active ? ' (Activa)' : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            {/* Seleccionar punto de votación */}
-            {selectedElection && (
-              <div className="space-y-2">
-                <Label htmlFor="bulk-vp">Punto de Votación</Label>
-                <Select
-                  value={selectedVotingPoint}
-                  onValueChange={setSelectedVotingPoint}
-                  disabled={loadingPoints}
-                >
-                  <SelectTrigger id="bulk-vp">
-                    <SelectValue
-                      placeholder={
-                        loadingPoints
-                          ? 'Cargando...'
-                          : votingPoints.length === 0
-                          ? 'No hay puntos creados'
-                          : 'Seleccionar punto de votación'
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {votingPoints.map((point) => (
-                      <SelectItem key={point.id} value={point.id}>
-                        {point.name}
-                        {point.location ? ` — ${point.location}` : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {/* Seleccionar punto de votación */}
+                {selectedElection && (
+                  <div className="space-y-2">
+                    <Label htmlFor="bulk-vp">Punto de Votación</Label>
+                    <Select
+                      value={selectedVotingPoint}
+                      onValueChange={setSelectedVotingPoint}
+                      disabled={loadingPoints}
+                    >
+                      <SelectTrigger id="bulk-vp">
+                        <SelectValue
+                          placeholder={
+                            loadingPoints
+                              ? 'Cargando...'
+                              : votingPoints.length === 0
+                              ? 'No hay puntos creados'
+                              : 'Seleccionar punto de votación'
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {votingPoints.map((point) => (
+                          <SelectItem key={point.id} value={point.id}>
+                            {point.name}
+                            {point.location ? ` — ${point.location}` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
 
-                {votingPoints.length === 0 && (
-                  <div className="pt-2">
-                    <Button size="sm" onClick={() => setVpFormOpen(true)}>
-                      <FileUp className="mr-2 h-4 w-4" />
-                      Crear punto de votación
-                    </Button>
+                    {votingPoints.length === 0 && (
+                      <div className="pt-2">
+                        <Button size="sm" onClick={() => setVpFormOpen(true)}>
+                          <FileUp className="mr-2 h-4 w-4" />
+                          Crear punto de votación
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
+              </>
             )}
 
             {/* Subir CSV */}
-            {selectedVotingPoint && (
+            {(selectedVotingPoint || fixedVotingPointId) && (
               <div className="space-y-3">
                 <Label>Archivo CSV</Label>
 
@@ -530,9 +544,13 @@ export function VoterBulkUploadDialog({
         {step === 'preview' && (
           <div className="space-y-4 py-2">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Badge variant="outline">{selectedElectionTitle}</Badge>
-              <span>→</span>
-              <Badge variant="outline">{selectedPointName}</Badge>
+              {!fixedVotingPointId && (
+                <>
+                  <Badge variant="outline">{selectedElectionTitle}</Badge>
+                  <span>→</span>
+                </>
+              )}
+              <Badge variant="outline">{fixedVotingPointId ? 'Punto de votación actual' : selectedPointName}</Badge>
             </div>
 
             <ScrollArea className="h-[350px] border rounded-lg">

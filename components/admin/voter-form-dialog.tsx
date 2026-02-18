@@ -12,6 +12,7 @@ interface VoterFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  votingPointId?: string;
 }
 
 interface VoterCredentials {
@@ -20,12 +21,14 @@ interface VoterCredentials {
   full_name: string;
 }
 
-export function VoterFormDialog({ open, onOpenChange, onSuccess }: VoterFormDialogProps) {
+export function VoterFormDialog({ open, onOpenChange, onSuccess, votingPointId }: VoterFormDialogProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [credentials, setCredentials] = useState<VoterCredentials | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [assignedToPoint, setAssignedToPoint] = useState(false);
+  const [assignError, setAssignError] = useState('');
   
   const [formData, setFormData] = useState({
     full_name: '',
@@ -64,6 +67,28 @@ export function VoterFormDialog({ open, onOpenChange, onSuccess }: VoterFormDial
           password: result.data.credentials.password,
           full_name: result.data.full_name,
         });
+
+        // Auto-assign to voting point if votingPointId is provided
+        if (votingPointId && result.data.id) {
+          try {
+            const assignResponse = await fetch(
+              `/api/voting-points/${votingPointId}/voters`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ profile_ids: [result.data.id] }),
+              }
+            );
+            const assignResult = await assignResponse.json();
+            if (assignResult.success) {
+              setAssignedToPoint(true);
+            } else {
+              setAssignError(assignResult.error || 'No se pudo asignar al punto de votación');
+            }
+          } catch {
+            setAssignError('Error al asignar al punto de votación');
+          }
+        }
       } else {
         setError(result.error || 'Error al crear votante');
       }
@@ -98,6 +123,8 @@ export function VoterFormDialog({ open, onOpenChange, onSuccess }: VoterFormDial
     setCredentials(null);
     setError('');
     setShowPassword(false);
+    setAssignedToPoint(false);
+    setAssignError('');
     onOpenChange(false);
   };
 
@@ -111,7 +138,9 @@ export function VoterFormDialog({ open, onOpenChange, onSuccess }: VoterFormDial
           <DialogDescription>
             {credentials
               ? 'Guarde estas credenciales de acceso. No se mostrarán nuevamente.'
-              : 'Complete los datos del votante y se generarán sus credenciales de acceso.'}
+              : votingPointId
+                ? 'Complete los datos del votante. Se creará y asignará automáticamente al punto de votación.'
+                : 'Complete los datos del votante y se generarán sus credenciales de acceso.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -226,8 +255,21 @@ export function VoterFormDialog({ open, onOpenChange, onSuccess }: VoterFormDial
               <CheckCircle2 className="h-4 w-4 text-green-600" />
               <AlertDescription className="text-green-800">
                 El votante <strong>{credentials.full_name}</strong> ha sido creado exitosamente.
+                {assignedToPoint && (
+                  <span className="block mt-1">✓ Asignado al punto de votación automáticamente.</span>
+                )}
               </AlertDescription>
             </Alert>
+
+            {assignError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  El votante fue creado, pero no se pudo asignar al punto de votación: {assignError}.
+                  Puede asignarlo manualmente.
+                </AlertDescription>
+              </Alert>
+            )}
 
             <div className="space-y-3">
               <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
