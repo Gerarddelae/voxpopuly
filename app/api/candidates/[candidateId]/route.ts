@@ -85,10 +85,10 @@ export async function PUT(
       );
     }
 
-    // Verificar que el candidato existe y su elección no ha iniciado
+    // Verificar que el candidato existe y su elección no está activa
     const { data: candidate } = await supabase
       .from('candidates')
-      .select('*, voting_point:voting_points!candidates_voting_point_id_fkey(*, election:elections!voting_points_election_id_fkey(start_date))')
+      .select('*, voting_point:voting_points!candidates_voting_point_id_fkey(*, election:elections!voting_points_election_id_fkey(is_active))')
       .eq('id', candidateId)
       .single();
 
@@ -100,9 +100,9 @@ export async function PUT(
     }
 
     const election = (candidate.voting_point as any)?.election;
-    if (election && new Date(election.start_date) <= new Date()) {
+    if (election?.is_active) {
       return NextResponse.json<ApiResponse>(
-        { success: false, error: 'No se puede modificar un candidato cuya elección ya ha iniciado' },
+        { success: false, error: 'No se puede modificar un candidato cuya elección está activa' },
         { status: 400 }
       );
     }
@@ -199,7 +199,7 @@ export async function DELETE(
 
     const { data: candidate } = await supabase
       .from('candidates')
-      .select('*, voting_point:voting_points!candidates_voting_point_id_fkey(*, election:elections!voting_points_election_id_fkey(start_date))')
+      .select('*, voting_point:voting_points!candidates_voting_point_id_fkey(*, election:elections!voting_points_election_id_fkey(is_active))')
       .eq('id', candidateId)
       .single();
 
@@ -211,9 +211,9 @@ export async function DELETE(
     }
 
     const election = (candidate.voting_point as any)?.election;
-    if (election && new Date(election.start_date) <= new Date()) {
+    if (election?.is_active) {
       return NextResponse.json<ApiResponse>(
-        { success: false, error: 'No se puede eliminar un candidato cuya elección ya ha iniciado' },
+        { success: false, error: 'No se puede eliminar un candidato cuya elección está activa' },
         { status: 400 }
       );
     }
