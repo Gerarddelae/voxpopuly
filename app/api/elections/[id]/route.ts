@@ -35,10 +35,7 @@ export async function GET(
             full_name,
             document
           ),
-          slates (
-            *,
-            members:slate_members (*)
-          )
+          candidates (*)
         )
       `)
       .eq('id', id)
@@ -263,7 +260,7 @@ export async function DELETE(
       );
     }
 
-    // Eliminar elección (CASCADE eliminará voting_points, slates, etc.)
+    // Eliminar elección (CASCADE eliminará voting_points, candidates, etc.)
     const { error } = await supabase
       .from('elections')
       .delete()

@@ -204,8 +204,8 @@ export default function VotingPointsPage() {
                                 <div className="flex items-center text-muted-foreground">
                                   <Users className="mr-2 h-3.5 w-3.5" />
                                   <span className="text-xs">
-                                    {vp.slates?.length || 0}{' '}
-                                    {vp.slates?.length === 1 ? 'plancha' : 'planchas'}
+                                    {vp.candidates?.length || 0}{' '}
+                                    {vp.candidates?.length === 1 ? 'candidato' : 'candidatos'}
                                   </span>
                                 </div>
 

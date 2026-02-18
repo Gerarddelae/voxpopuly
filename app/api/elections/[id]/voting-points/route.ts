@@ -161,10 +161,7 @@ export async function GET(
           full_name,
           document
         ),
-        slates (
-          *,
-          members:slate_members (*)
-        )
+        candidates (*)
       `)
       .eq('election_id', electionId)
       .order('created_at', { ascending: false });

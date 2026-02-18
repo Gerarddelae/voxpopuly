@@ -160,9 +160,9 @@ export function ElectionDetailsDialog({
                       </div>
                       <div className="space-y-1">
                         <p className="text-2xl font-bold">
-                          {election.voting_points?.reduce((acc, vp) => acc + (vp.slates?.length || 0), 0) || 0}
+                          {election.voting_points?.reduce((acc, vp) => acc + (vp.candidates?.length || 0), 0) || 0}
                         </p>
-                        <p className="text-xs text-muted-foreground">Planchas totales</p>
+                        <p className="text-xs text-muted-foreground">Candidatos totales</p>
                       </div>
                       <div className="space-y-1">
                         <p className="text-2xl font-bold">
@@ -224,7 +224,7 @@ export function ElectionDetailsDialog({
                             <div className="flex items-center gap-4 text-sm text-muted-foreground">
                               <div className="flex items-center">
                                 <Users className="mr-1 h-4 w-4" />
-                                {vp.slates?.length || 0} planchas
+                                {vp.candidates?.length || 0} candidatos
                               </div>
                               {vp.delegate && (
                                 <div className="flex items-center">

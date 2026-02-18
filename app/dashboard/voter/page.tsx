@@ -17,16 +17,6 @@ import {
   UserCircle,
   
 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogTrigger,
-  DialogClose,
-} from '@/components/ui/dialog';
 
 interface VotingInfo {
   isAssigned: boolean;
@@ -35,7 +25,7 @@ interface VotingInfo {
   canVote: boolean;
   hasVoted: boolean;
   votedAt?: string;
-  slates?: any[];
+  candidates?: any[];
   voterRecordId?: string;
   message: string;
 }
@@ -43,20 +33,9 @@ interface VotingInfo {
 export default function VoterPage() {
   const [loading, setLoading] = useState(true);
   const [votingInfo, setVotingInfo] = useState<VotingInfo | null>(null);
-  const [selectedSlate, setSelectedSlate] = useState<string | null>(null);
+  const [selectedCandidate, setSelectedCandidate] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [voteSuccess, setVoteSuccess] = useState(false);
-  const [dialogSlate, setDialogSlate] = useState<any | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
-
-  const openSlateDialog = (slate: any) => {
-    setDialogSlate(slate);
-    setDialogOpen(true);
-  };
-  const closeSlateDialog = () => {
-    setDialogSlate(null);
-    setDialogOpen(false);
-  };
 
   useEffect(() => {
     loadVotingInfo();
@@ -81,7 +60,7 @@ export default function VoterPage() {
   };
 
   const handleVote = async () => {
-    if (!selectedSlate) return;
+    if (!selectedCandidate) return;
 
     if (!confirm('¿Estás seguro de que deseas emitir tu voto? Esta acción no se puede deshacer.')) {
       return;
@@ -92,14 +71,14 @@ export default function VoterPage() {
       const response = await fetch('/api/voter/vote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slate_id: selectedSlate }),
+        body: JSON.stringify({ candidate_id: selectedCandidate }),
       });
 
       const result = await response.json();
 
       if (result.success) {
         setVoteSuccess(true);
-        setSelectedSlate(null);
+        setSelectedCandidate(null);
         // Recargar información
         setTimeout(() => {
           loadVotingInfo();
@@ -216,7 +195,7 @@ export default function VoterPage() {
               <ul className="list-disc list-inside space-y-1 ml-2">
                 <li>Aún no has sido asignado a ningún punto de votación</li>
                 <li>Contacta al administrador para que te asigne a un punto</li>
-                <li>Una vez asignado, podrás ver las planchas disponibles aquí</li>
+                <li>Una vez asignado, podrás ver los candidatos disponibles aquí</li>
               </ul>
             </div>
           </CardContent>
@@ -225,9 +204,9 @@ export default function VoterPage() {
     );
   }
 
-  // Si puede votar: mostrar planchas
-  const slates = votingInfo.slates || [];
-  const canActuallyVote = votingInfo.canVote && slates.length > 0;
+  // Mostrar tarjetón de candidatos
+  const candidates = votingInfo.candidates || [];
+  const canActuallyVote = votingInfo.canVote && candidates.length > 0;
   const electionStatus = votingInfo.election?.is_active ? 'Activa' : 'Inactiva';
   const period = `${votingInfo.election?.start_date ? new Date(votingInfo.election.start_date).toLocaleDateString('es-ES') : 'N/A'} - ${votingInfo.election?.end_date ? new Date(votingInfo.election.end_date).toLocaleDateString('es-ES') : 'N/A'}`;
 
@@ -236,7 +215,7 @@ export default function VoterPage() {
       {/* Hero */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-3 flex-wrap">
-          <h2 className="text-3xl font-bold tracking-tight">Panel de Votación</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Tarjetón Electoral</h2>
           <Badge variant={votingInfo.canVote ? 'default' : 'secondary'} className="flex items-center gap-1">
             <Vote className="h-3 w-3" /> {votingInfo.canVote ? 'Votación abierta' : 'Votación cerrada'}
           </Badge>
@@ -286,7 +265,7 @@ export default function VoterPage() {
               </Badge>
               <Badge variant="outline" className="text-xs">
                 <Users className="h-3 w-3 mr-1" />
-                {slates.length} {slates.length === 1 ? 'plancha' : 'planchas'}
+                {candidates.length} {candidates.length === 1 ? 'candidato' : 'candidatos'}
               </Badge>
             </div>
           </CardContent>
@@ -312,18 +291,18 @@ export default function VoterPage() {
       <Alert>
         <Vote className="h-4 w-4" />
         <AlertDescription className="text-sm">
-          <strong>Cómo votar:</strong> Selecciona una plancha haciendo clic en ella y luego confirma tu voto. 
+          <strong>Cómo votar:</strong> Selecciona un candidato haciendo clic en su tarjeta y luego confirma tu voto. 
           El voto es completamente anónimo y no podrá ser modificado una vez confirmado.
         </AlertDescription>
       </Alert>
 
-      {/* Planchas disponibles */}
-      {slates.length === 0 ? (
+      {/* Candidatos disponibles */}
+      {candidates.length === 0 ? (
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            No hay planchas disponibles en tu punto de votación en este momento.
-            {!votingInfo.canVote && ' Las planchas se mostrarán cuando se activen.'}
+            No hay candidatos disponibles en tu punto de votación en este momento.
+            {!votingInfo.canVote && ' Los candidatos se mostrarán cuando se activen.'}
           </AlertDescription>
         </Alert>
       ) : (
@@ -331,160 +310,75 @@ export default function VoterPage() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-muted-foreground">
-                {slates.length} {slates.length === 1 ? 'plancha disponible' : 'planchas disponibles'}
+                {candidates.length} {candidates.length === 1 ? 'candidato disponible' : 'candidatos disponibles'}
               </p>
-              {/* Removed bulk expand control to simplify UI and avoid confusion */}
             </div>
           </div>
 
-          {/* Dialog: detalle de plancha */}
-          <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeSlateDialog(); setDialogOpen(open); }}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{dialogSlate?.name || 'Detalle de la plancha'}</DialogTitle>
-                <DialogDescription className="mb-2">{dialogSlate?.description}</DialogDescription>
-              </DialogHeader>
-              <div className="max-h-[60vh] overflow-y-auto space-y-2">
-                {(dialogSlate?.members || []).map((member: any) => (
-                  <div key={member.id} className="flex items-center gap-3 p-2 rounded-md bg-muted/50">
-                    {member.photo_url ? (
-                      <img src={member.photo_url} alt={member.full_name} className="w-10 h-10 rounded-full object-cover" />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {candidates.map((candidate) => (
+              <Card
+                key={candidate.id}
+                className={`transition-all flex flex-col ${
+                  canActuallyVote
+                    ? `${
+                        selectedCandidate === candidate.id
+                          ? 'border-primary ring-2 ring-primary shadow-lg'
+                          : 'hover:border-primary/50 hover:shadow-md'
+                      } cursor-pointer`
+                    : 'opacity-75 cursor-not-allowed'
+                }`}
+                onClick={() => canActuallyVote && setSelectedCandidate(candidate.id)}
+              >
+                <CardContent className="pt-6 flex flex-col items-center text-center gap-3">
+                  {/* Photo */}
+                  <div className="relative">
+                    {candidate.photo_url ? (
+                      <img
+                        src={candidate.photo_url}
+                        alt={candidate.full_name}
+                        className="w-24 h-24 rounded-full object-cover border-4 border-background shadow-md"
+                      />
                     ) : (
-                      <div className="w-10 h-10 rounded-full bg-muted-foreground/10 flex items-center justify-center">
-                        <UserCircle className="h-5 w-5 text-muted-foreground/50" />
+                      <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center border-4 border-background shadow-md">
+                        <UserCircle className="h-12 w-12 text-muted-foreground/50" />
                       </div>
                     )}
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">{member.full_name}</div>
-                      {member.role && <div className="text-xs text-muted-foreground">{member.role}</div>}
-                    </div>
+                    {selectedCandidate === candidate.id && canActuallyVote && (
+                      <div className="absolute -top-1 -right-1 bg-primary rounded-full p-1">
+                        <CheckCircle2 className="h-5 w-5 text-primary-foreground" />
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
-              <DialogFooter>
-                <Button onClick={() => { if (dialogSlate) { setSelectedSlate(dialogSlate.id); } closeSlateDialog(); }}>
-                  Seleccionar plancha
-                </Button>
-                <DialogClose asChild>
-                  <Button variant="ghost">Cerrar</Button>
-                </DialogClose>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
 
-          <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
-            {slates.map((slate) => {
-              const hasMembers = slate.members && slate.members.length > 0;
-              
-              return (
-                <Card
-                  key={slate.id}
-                  className={`transition-all flex flex-col ${
-                    canActuallyVote
-                      ? `${
-                          selectedSlate === slate.id
-                            ? 'border-primary ring-2 ring-primary shadow-lg'
-                            : 'hover:border-primary/50 hover:shadow-md'
-                        }`
-                      : 'opacity-75'
-                  }`}
-                >
-                  <CardHeader 
-                    className={`${canActuallyVote ? 'cursor-pointer' : 'cursor-not-allowed'}`}
-                    onClick={() => canActuallyVote && setSelectedSlate(slate.id)}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          {slate.name}
-                          {selectedSlate === slate.id && canActuallyVote && (
-                            <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
-                          )}
-                        </CardTitle>
-                        {slate.description && (
-                          <CardDescription className="mt-1.5 text-sm line-clamp-2">
-                            {slate.description}
-                          </CardDescription>
-                        )}
-                        {hasMembers && (
-                          <div className="flex items-center gap-2 mt-2">
-                            <Badge variant="outline" className="text-xs">
-                              <Users className="h-3 w-3 mr-1" />
-                              {slate.members.length} {slate.members.length === 1 ? 'candidato' : 'candidatos'}
-                            </Badge>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-
-                  {hasMembers && (
-                    <CardContent className="pt-2 flex-1">
-                      <div className="flex flex-col gap-2">
-                        <div className="flex flex-wrap gap-2 items-center">
-                          {slate.members.slice(0, 3).map((member: any) => (
-                            <div
-                              key={member.id}
-                              className="flex items-center gap-2 text-sm p-2 rounded-md bg-muted/50 hover:bg-muted transition-colors"
-                            >
-                              {member.photo_url ? (
-                                <img
-                                  src={member.photo_url}
-                                  alt={member.full_name}
-                                  className="w-9 h-9 rounded-full object-cover border-2 border-background shadow-sm flex-shrink-0"
-                                />
-                              ) : (
-                                <div className="w-9 h-9 rounded-full bg-muted-foreground/10 flex items-center justify-center flex-shrink-0 border-2 border-background">
-                                  <UserCircle className="h-5 w-5 text-muted-foreground/50" />
-                                </div>
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <span className="font-medium block truncate text-sm">{member.full_name}</span>
-                                {member.role && (
-                                  <Badge variant="secondary" className="text-xs mt-0.5">
-                                    {member.role}
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-
-                          {slate.members.length > 3 && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="ml-1"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openSlateDialog(slate);
-                              }}
-                            >
-                              Ver {slate.members.length - 3} más
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  )}
-                </Card>
-              );
-            })}
+                  {/* Name & Role */}
+                  <div>
+                    <p className="font-semibold text-lg">{candidate.full_name}</p>
+                    {candidate.role && (
+                      <Badge variant="secondary" className="mt-1 text-xs">
+                        {candidate.role}
+                      </Badge>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
 
           {/* Botón de confirmación */}
           <div className="sticky bottom-0 py-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t">
             <div className="flex flex-col sm:flex-row gap-3 items-center justify-center">
-              {selectedSlate && canActuallyVote && (
+              {selectedCandidate && canActuallyVote && (
                 <div className="text-sm text-muted-foreground text-center sm:text-left">
-                  Plancha seleccionada: <span className="font-semibold text-foreground">
-                    {slates.find(s => s.id === selectedSlate)?.name}
+                  Candidato seleccionado: <span className="font-semibold text-foreground">
+                    {candidates.find(c => c.id === selectedCandidate)?.full_name}
                   </span>
                 </div>
               )}
               <Button
                 size="lg"
                 onClick={handleVote}
-                disabled={!canActuallyVote || !selectedSlate || submitting}
+                disabled={!canActuallyVote || !selectedCandidate || submitting}
                 className="min-w-[200px] shadow-lg"
               >
                 {submitting ? (
@@ -497,10 +391,10 @@ export default function VoterPage() {
                     <Vote className="mr-2 h-5 w-5" />
                     Votación no disponible
                   </>
-                ) : !selectedSlate ? (
+                ) : !selectedCandidate ? (
                   <>
                     <UserCheck className="mr-2 h-5 w-5" />
-                    Selecciona una plancha
+                    Selecciona un candidato
                   </>
                 ) : (
                   <>

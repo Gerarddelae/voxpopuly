@@ -1,10 +1,10 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
-import type { ApiResponse, SlateFormData, Slate, SlateMemberFormData } from '@/lib/types/database.types';
+import type { ApiResponse, CandidateFormData, Candidate } from '@/lib/types/database.types';
 
 export const dynamic = 'force-dynamic';
 
-// POST - Crear plancha para un punto de votación
+// POST - Crear candidato para un punto de votación
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ pointId: string }> }
@@ -23,7 +23,6 @@ export async function POST(
       );
     }
 
-    // Verificar que sea admin
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
@@ -58,81 +57,54 @@ export async function POST(
       );
     }
 
-    // Obtener datos del body
-    const body: SlateFormData & { members?: SlateMemberFormData[] } = await request.json();
+    const body: CandidateFormData = await request.json();
 
-    // Validaciones
-    if (!body.name) {
+    if (!body.full_name) {
       return NextResponse.json<ApiResponse>(
-        { success: false, error: 'El nombre de la plancha es requerido' },
+        { success: false, error: 'El nombre del candidato es requerido' },
         { status: 400 }
       );
     }
 
-    // Crear plancha
-    const { data: slate, error: slateError } = await supabase
-      .from('slates')
+    // Crear candidato
+    const { data: candidate, error: candidateError } = await supabase
+      .from('candidates')
       .insert({
         voting_point_id: votingPointId,
-        name: body.name,
-        description: body.description || null,
+        full_name: body.full_name,
+        role: body.role || null,
+        photo_url: body.photo_url || null,
       })
       .select()
       .single();
 
-    if (slateError) {
-      console.error('Error creating slate:', slateError);
+    if (candidateError) {
+      console.error('Error creating candidate:', candidateError);
       return NextResponse.json<ApiResponse>(
-        { success: false, error: slateError.message },
+        { success: false, error: candidateError.message },
         { status: 500 }
       );
     }
 
-    // Agregar miembros si se proporcionaron
-    if (body.members && body.members.length > 0) {
-      const membersData = body.members.map(member => ({
-        slate_id: slate.id,
-        full_name: member.full_name,
-        role: member.role || null,
-        photo_url: member.photo_url || null,
-      }));
-
-      const { error: membersError } = await supabase
-        .from('slate_members')
-        .insert(membersData);
-
-      if (membersError) {
-        console.error('Error creating slate members:', membersError);
-        // No retornar error, la plancha ya fue creada
-      }
-    }
-
-    // Obtener plancha con miembros
-    const { data: slateWithMembers } = await supabase
-      .from('slates')
-      .select('*, members:slate_members(*)')
-      .eq('id', slate.id)
-      .single();
-
     // Registrar auditoría
     await supabase.from('audit_logs').insert({
       user_id: user.id,
-      action: 'slate_created',
-      entity_type: 'slate',
-      entity_id: slate.id,
+      action: 'candidate_created',
+      entity_type: 'candidate',
+      entity_id: candidate.id,
       metadata: { 
-        name: slate.name,
+        full_name: candidate.full_name,
         voting_point_id: votingPointId
       },
     });
 
-    return NextResponse.json<ApiResponse<Slate>>({
+    return NextResponse.json<ApiResponse<Candidate>>({
       success: true,
-      data: slateWithMembers || slate,
-      message: 'Plancha creada exitosamente',
+      data: candidate,
+      message: 'Candidato creado exitosamente',
     }, { status: 201 });
   } catch (error) {
-    console.error('POST /api/voting-points/[pointId]/slates error:', error);
+    console.error('POST /api/voting-points/[pointId]/candidates error:', error);
     return NextResponse.json<ApiResponse>(
       { success: false, error: 'Error interno del servidor' },
       { status: 500 }
@@ -140,7 +112,7 @@ export async function POST(
   }
 }
 
-// GET - Obtener planchas de un punto de votación
+// GET - Obtener candidatos de un punto de votación
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ pointId: string }> }
@@ -149,7 +121,6 @@ export async function GET(
     const supabase = await createClient();
     const { pointId: votingPointId } = await params;
 
-    // Verificar autenticación
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
@@ -159,42 +130,26 @@ export async function GET(
       );
     }
 
-    // Obtener planchas con miembros
-    const { data: slates, error } = await supabase
-      .from('slates')
-      .select(`
-        *,
-        slate_members (
-          id,
-          full_name,
-          role,
-          photo_url,
-          created_at
-        )
-      `)
+    const { data: candidates, error } = await supabase
+      .from('candidates')
+      .select('*')
       .eq('voting_point_id', votingPointId)
-      .order('created_at', { ascending: false });
+      .order('full_name');
 
     if (error) {
-      console.error('Error fetching slates:', error);
+      console.error('Error fetching candidates:', error);
       return NextResponse.json<ApiResponse>(
         { success: false, error: error.message },
         { status: 500 }
       );
     }
 
-    // Mapear slate_members a members para compatibilidad
-    const slatesWithMembers = slates?.map(slate => ({
-      ...slate,
-      members: slate.slate_members || [],
-    })) || [];
-
-    return NextResponse.json<ApiResponse<Slate[]>>({
+    return NextResponse.json<ApiResponse<Candidate[]>>({
       success: true,
-      data: slatesWithMembers,
+      data: candidates || [],
     });
   } catch (error) {
-    console.error('GET /api/voting-points/[pointId]/slates error:', error);
+    console.error('GET /api/voting-points/[pointId]/candidates error:', error);
     return NextResponse.json<ApiResponse>(
       { success: false, error: 'Error interno del servidor' },
       { status: 500 }

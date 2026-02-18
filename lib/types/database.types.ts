@@ -38,26 +38,17 @@ export interface VotingPoint {
   election?: Election;
 }
 
-export interface Slate {
+export interface Candidate {
   id: string;
   voting_point_id: string;
-  name: string;
-  description: string | null;
+  full_name: string;
+  role: string | null;
+  photo_url: string | null;
   vote_count: number;
   created_at: string;
   updated_at: string;
   // Relations
   voting_point?: VotingPoint;
-  members?: SlateMember[];
-}
-
-export interface SlateMember {
-  id: string;
-  slate_id: string;
-  full_name: string;
-  role: string | null;
-  photo_url: string | null;
-  created_at: string;
 }
 
 export interface Voter {
@@ -75,7 +66,7 @@ export interface Voter {
 export interface Vote {
   id: string;
   voter_id: string;
-  slate_id: string;
+  candidate_id: string;
   created_at: string;
 }
 
@@ -107,12 +98,7 @@ export interface VotingPointFormData {
   delegate_id?: string;
 }
 
-export interface SlateFormData {
-  name: string;
-  description?: string;
-}
-
-export interface SlateMemberFormData {
+export interface CandidateFormData {
   full_name: string;
   role?: string;
   photo_url?: string;
@@ -149,13 +135,8 @@ export interface ElectionWithDetails extends Election {
 }
 
 export interface VotingPointWithDetails extends VotingPoint {
-  slates?: SlateWithDetails[];
+  candidates?: Candidate[];
   delegate?: Profile;
   total_voters?: number;
   total_votes?: number;
-}
-
-export interface SlateWithDetails extends Slate {
-  members?: SlateMember[];
-  voting_point?: VotingPoint;
 }

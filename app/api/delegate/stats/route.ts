@@ -61,40 +61,31 @@ export async function GET() {
       return NextResponse.json<ApiResponse>({ success: false, error: 'No tienes un punto de votación asignado' }, { status: 404 });
     }
 
-    // Obtener planchas del punto con conteo y miembros
-    const { data: slates, error: slatesError } = await service
-      .from('slates')
+    // Obtener candidatos del punto con conteo de votos
+    const { data: candidates, error: candidatesError } = await service
+      .from('candidates')
       .select(`
         id,
-        name,
-        description,
-        vote_count,
-        slate_members ( id, full_name, role, photo_url )
+        full_name,
+        role,
+        photo_url,
+        vote_count
       `)
       .eq('voting_point_id', votingPoint.id)
-      .order('name');
+      .order('full_name');
 
-    if (slatesError) {
-      console.error('Error fetching slates stats:', slatesError);
+    if (candidatesError) {
+      console.error('Error fetching candidates stats:', candidatesError);
       return NextResponse.json<ApiResponse>({ success: false, error: 'Error al cargar estadísticas' }, { status: 500 });
     }
 
-    const totalVotes = (slates || []).reduce((acc, s) => acc + (s.vote_count || 0), 0);
-
-    // Mapear slate_members a members para compatibilidad con front-end
-    const slatesWithMembers = (slates || []).map((s: any) => ({
-      id: s.id,
-      name: s.name,
-      description: s.description,
-      vote_count: s.vote_count,
-      members: s.slate_members || [],
-    }));
+    const totalVotes = (candidates || []).reduce((acc, c) => acc + (c.vote_count || 0), 0);
 
     return NextResponse.json<ApiResponse>({
       success: true,
       data: {
         votingPoint,
-        slates: slatesWithMembers,
+        candidates: candidates || [],
         totalVotes,
       }
     });

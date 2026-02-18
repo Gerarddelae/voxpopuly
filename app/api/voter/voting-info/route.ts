@@ -114,28 +114,23 @@ export async function GET() {
       });
     }
 
-    // Obtener las planchas disponibles SIEMPRE (aunque la elección no esté activa)
-    const { data: slates, error: slatesError } = await serviceClient
-      .from('slates')
+    // Obtener los candidatos disponibles SIEMPRE (aunque la elección no esté activa)
+    const { data: candidates, error: candidatesError } = await serviceClient
+      .from('candidates')
       .select(`
         id,
-        name,
-        description,
-        vote_count,
-        members:slate_members (
-          id,
-          full_name,
-          role,
-          photo_url
-        )
+        full_name,
+        role,
+        photo_url,
+        vote_count
       `)
       .eq('voting_point_id', voterRecord.voting_point_id)
-      .order('name');
+      .order('full_name');
 
-    if (slatesError) {
-      console.error('Error fetching slates:', slatesError);
+    if (candidatesError) {
+      console.error('Error fetching candidates:', candidatesError);
       return NextResponse.json<ApiResponse>(
-        { success: false, error: 'Error al cargar las planchas' },
+        { success: false, error: 'Error al cargar los candidatos' },
         { status: 500 }
       );
     }
@@ -146,8 +141,8 @@ export async function GET() {
     let message = '';
     if (!election?.is_active) {
       message = 'La elección no está activa en este momento. Podrás votar cuando se active.';
-    } else if (slates && slates.length === 0) {
-      message = 'No hay planchas disponibles en tu punto de votación.';
+    } else if (candidates && candidates.length === 0) {
+      message = 'No hay candidatos disponibles en tu punto de votación.';
     } else {
       message = 'Puedes votar ahora.';
     }
@@ -160,7 +155,7 @@ export async function GET() {
         election,
         canVote,
         hasVoted: false,
-        slates: slates || [],
+        candidates: candidates || [],
         voterRecordId: voterRecord.id,
         message
       }

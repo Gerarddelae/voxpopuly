@@ -36,11 +36,11 @@ export async function POST(request: NextRequest) {
 
     // Obtener datos del body
     const body = await request.json();
-    const { slate_id } = body;
+    const { candidate_id } = body;
 
-    if (!slate_id) {
+    if (!candidate_id) {
       return NextResponse.json<ApiResponse>(
-        { success: false, error: 'Se requiere seleccionar una plancha' },
+        { success: false, error: 'Se requiere seleccionar un candidato' },
         { status: 400 }
       );
     }
@@ -104,23 +104,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verificar que la plancha pertenezca al punto de votación del votante
-    const { data: slate, error: slateError } = await serviceClient
-      .from('slates')
-      .select('id, voting_point_id, name')
-      .eq('id', slate_id)
+    // Verificar que el candidato pertenezca al punto de votación del votante
+    const { data: candidate, error: candidateError } = await serviceClient
+      .from('candidates')
+      .select('id, voting_point_id, full_name')
+      .eq('id', candidate_id)
       .single();
 
-    if (slateError || !slate) {
+    if (candidateError || !candidate) {
       return NextResponse.json<ApiResponse>(
-        { success: false, error: 'Plancha no encontrada' },
+        { success: false, error: 'Candidato no encontrado' },
         { status: 404 }
       );
     }
 
-    if (slate.voting_point_id !== voterRecord.voting_point_id) {
+    if (candidate.voting_point_id !== voterRecord.voting_point_id) {
       return NextResponse.json<ApiResponse>(
-        { success: false, error: 'Esta plancha no pertenece a tu punto de votación' },
+        { success: false, error: 'Este candidato no pertenece a tu punto de votación' },
         { status: 403 }
       );
     }
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
       .from('votes')
       .insert({
         voter_id: voterRecord.id,
-        slate_id: slate_id
+        candidate_id: candidate_id
       })
       .select()
       .single();
@@ -163,15 +163,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Incrementar el contador de votos de la plancha
-    const { error: updateSlateError } = await serviceClient.rpc('increment_slate_votes', {
-      slate_id: slate_id
+    // 3. Incrementar el contador de votos del candidato
+    const { error: updateCandidateError } = await serviceClient.rpc('increment_candidate_votes', {
+      candidate_id: candidate_id
     });
 
-    if (updateSlateError) {
-      console.error('Error incrementing slate votes:', updateSlateError);
+    if (updateCandidateError) {
+      console.error('Error incrementing candidate votes:', updateCandidateError);
       // No revertimos aquí porque el voto ya está registrado
-      // Solo logueamos el error
     }
 
     // Registrar auditoría
@@ -182,7 +181,8 @@ export async function POST(request: NextRequest) {
       entity_id: vote.id,
       metadata: {
         voting_point_id: voterRecord.voting_point_id,
-        election_id: election.id
+        election_id: election.id,
+        candidate_id: candidate_id
       }
     });
 

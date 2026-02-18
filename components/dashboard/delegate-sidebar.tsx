@@ -54,9 +54,9 @@ const menuItems = [
     href: "/dashboard/delegate/voters",
   },
   {
-    title: "Planchas",
+    title: "Candidatos",
     icon: Vote,
-    href: "/dashboard/delegate/slates",
+    href: "/dashboard/delegate/candidates",
   },
   {
     title: "Resultados",

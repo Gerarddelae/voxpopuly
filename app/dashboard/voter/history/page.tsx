@@ -9,8 +9,10 @@ import { Calendar, History as HistoryIcon, Loader2, MapPin, Vote } from 'lucide-
 interface VoteItem {
   id: string;
   created_at: string;
-  slate?: {
-    name: string;
+  candidate?: {
+    full_name: string;
+    role?: string;
+    photo_url?: string;
     voting_point?: {
       name: string;
       location?: string;
@@ -84,21 +86,21 @@ export default function VoterHistoryPage() {
 
       <div className="grid gap-3">
         {history.map((item) => {
-          const election = item.slate?.voting_point?.election;
+          const election = item.candidate?.voting_point?.election;
           const period = `${election?.start_date ? new Date(election.start_date).toLocaleDateString('es-ES') : 'N/A'} - ${election?.end_date ? new Date(election.end_date).toLocaleDateString('es-ES') : 'N/A'}`;
           return (
             <Card key={item.id}>
               <CardHeader className="flex flex-row items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <Vote className="h-4 w-4" />
-                  <CardTitle className="text-base">{item.slate?.name || 'Plancha'}</CardTitle>
+                  <CardTitle className="text-base">{item.candidate?.full_name || 'Candidato'}</CardTitle>
                 </div>
                 <Badge variant="secondary">{new Date(item.created_at).toLocaleString('es-ES')}</Badge>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
                   <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <span>{item.slate?.voting_point?.name} {item.slate?.voting_point?.location ? `· ${item.slate.voting_point.location}` : ''}</span>
+                  <span>{item.candidate?.voting_point?.name} {item.candidate?.voting_point?.location ? `· ${item.candidate.voting_point.location}` : ''}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-muted-foreground" />

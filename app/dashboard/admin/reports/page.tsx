@@ -53,10 +53,10 @@ import {
   Pie,
 } from 'recharts';
 
-type StatSlate = {
+type StatCandidate = {
   id: string;
-  name: string;
-  description?: string | null;
+  full_name: string;
+  role?: string | null;
   vote_count: number;
 };
 
@@ -76,7 +76,7 @@ type StatVotingPoint = {
     full_name: string;
     document: string;
   } | null;
-  slates: StatSlate[];
+  candidates: StatCandidate[];
   totalVoters: number;
   votedCount: number;
   totalVotes: number;
@@ -137,7 +137,7 @@ function ParticipationCustomTooltip({ active, payload, label }: any) {
   );
 }
 
-function TopSlatesCustomTooltip({ active, payload, label }: any) {
+function TopCandidatesCustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
 
   const votos = payload.find((p: any) => p.dataKey === 'vote_count')?.value || 0;
@@ -243,18 +243,18 @@ export default function ReportsPage() {
     return elections.find((e) => e.id === selectedElectionId) ?? null;
   }, [elections, selectedElectionId]);
 
-  const slateColors = ['#6e3ff3', '#35b9e9', '#e255f2', '#375dfb', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
+  const candidateColors = ['#6e3ff3', '#35b9e9', '#e255f2', '#375dfb', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
 
-  // Aggregate slates by name for pie chart when a specific election is selected
-  const slateAggregation = useMemo(() => {
+  // Aggregate candidates by name for pie chart when a specific election is selected
+  const candidateAggregation = useMemo(() => {
     const map = new Map<string, number>();
     filteredVotingPoints.forEach((vp) => {
-      vp.slates.forEach((s) => {
-        map.set(s.name, (map.get(s.name) ?? 0) + (s.vote_count || 0));
+      vp.candidates.forEach((c) => {
+        map.set(c.full_name, (map.get(c.full_name) ?? 0) + (c.vote_count || 0));
       });
     });
     return Array.from(map.entries())
-      .map(([name, votes], i) => ({ name, votes, fill: slateColors[i % slateColors.length] }))
+      .map(([name, votes], i) => ({ name, votes, fill: candidateColors[i % candidateColors.length] }))
       .sort((a, b) => b.votes - a.votes);
   }, [filteredVotingPoints]);
 
@@ -281,40 +281,40 @@ export default function ReportsPage() {
     channelsRef.current.forEach((ch) => supabase.removeChannel(ch));
     channelsRef.current = [];
 
-    // Canal 1: Cambios en planillas (slates) → votos en tiempo real
-    const slatesChannel = supabase
-      .channel('admin-slates-' + Date.now())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'slates' }, (payload) => {
-        console.log('🔔 Slate change', payload.eventType);
+    // Canal 1: Cambios en candidatos → votos en tiempo real
+    const candidatesChannel = supabase
+      .channel('admin-candidates-' + Date.now())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'candidates' }, (payload) => {
+        console.log('🔔 Candidate change', payload.eventType);
         setStats((prev) => {
           if (!prev) return prev;
           let changed = false;
 
           const nextVPs = prev.votingPoints.map((vp) => {
-            const newSlate = payload.new as any;
-            const slateIdx = vp.slates.findIndex((s) => s.id === newSlate?.id);
+            const newCandidate = payload.new as any;
+            const candidateIdx = vp.candidates.findIndex((c) => c.id === newCandidate?.id);
 
-            if (slateIdx >= 0) {
-              const nextSlates = [...vp.slates];
-              nextSlates[slateIdx] = {
-                ...nextSlates[slateIdx],
-                vote_count: newSlate?.vote_count ?? nextSlates[slateIdx].vote_count,
-                name: newSlate?.name ?? nextSlates[slateIdx].name,
-                description: newSlate?.description ?? nextSlates[slateIdx].description,
+            if (candidateIdx >= 0) {
+              const nextCandidates = [...vp.candidates];
+              nextCandidates[candidateIdx] = {
+                ...nextCandidates[candidateIdx],
+                vote_count: newCandidate?.vote_count ?? nextCandidates[candidateIdx].vote_count,
+                full_name: newCandidate?.full_name ?? nextCandidates[candidateIdx].full_name,
+                role: newCandidate?.role ?? nextCandidates[candidateIdx].role,
               };
               changed = true;
-              return { ...vp, slates: nextSlates, totalVotes: nextSlates.reduce((a, s) => a + (s.vote_count || 0), 0) };
+              return { ...vp, candidates: nextCandidates, totalVotes: nextCandidates.reduce((a, c) => a + (c.vote_count || 0), 0) };
             }
 
-            if (newSlate?.voting_point_id === vp.id) {
-              const nextSlates = [...vp.slates, {
-                id: newSlate.id,
-                name: newSlate.name,
-                description: newSlate.description,
-                vote_count: newSlate.vote_count ?? 0,
+            if (newCandidate?.voting_point_id === vp.id) {
+              const nextCandidates = [...vp.candidates, {
+                id: newCandidate.id,
+                full_name: newCandidate.full_name,
+                role: newCandidate.role,
+                vote_count: newCandidate.vote_count ?? 0,
               }];
               changed = true;
-              return { ...vp, slates: nextSlates, totalVotes: nextSlates.reduce((a, s) => a + (s.vote_count || 0), 0) };
+              return { ...vp, candidates: nextCandidates, totalVotes: nextCandidates.reduce((a, c) => a + (c.vote_count || 0), 0) };
             }
 
             return vp;
@@ -325,7 +325,7 @@ export default function ReportsPage() {
         });
       })
       .subscribe((status) => {
-        console.log('📡 Slates subscription:', status);
+        console.log('📡 Candidates subscription:', status);
       });
 
     // Canal 2: Cambios en votantes (voters) → participación en tiempo real
@@ -422,7 +422,7 @@ export default function ReportsPage() {
         console.log('📡 Voting Points subscription:', status);
       });
 
-    channelsRef.current = [slatesChannel, votersChannel, electionsChannel, votingPointsChannel];
+    channelsRef.current = [candidatesChannel, votersChannel, electionsChannel, votingPointsChannel];
   };
 
   const loadStats = async () => {
@@ -594,8 +594,8 @@ export default function ReportsPage() {
 
       yPos = (doc as any).lastAutoTable.finalY + 15;
 
-      // Top Slates Table
-      if (topSlates.length > 0) {
+      // Top Candidates Table
+      if (topCandidates.length > 0) {
         if (yPos > pageHeight - 40) {
           doc.addPage();
           yPos = 20;
@@ -603,20 +603,20 @@ export default function ReportsPage() {
 
         doc.setFontSize(14);
         doc.setFont('helvetica', 'bold');
-        doc.text('Top Planchas', 15, yPos);
+        doc.text('Top Candidatos', 15, yPos);
         yPos += 10;
 
-        const slatesData = topSlates.map((slate, index) => [
+        const candidatesData = topCandidates.map((candidate, index) => [
           String(index + 1),
-          slate.name,
-          String(slate.vote_count),
-          slate.vpName,
+          candidate.full_name,
+          String(candidate.vote_count),
+          candidate.vpName,
         ]);
 
         autoTable(doc, {
           startY: yPos,
-          head: [['#', 'Plancha', 'Votos', 'Punto']],
-          body: slatesData,
+          head: [['#', 'Candidato', 'Votos', 'Punto']],
+          body: candidatesData,
           theme: 'striped',
           headStyles: { fillColor: [226, 85, 242], textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold' },
           bodyStyles: { fontSize: 8 },
@@ -704,8 +704,8 @@ export default function ReportsPage() {
     participacion: vp.totalVoters > 0 ? Number(((vp.votedCount / vp.totalVoters) * 100).toFixed(2)) : 0,
   }));
 
-  const topSlates = filteredVotingPoints
-    .flatMap((vp) => vp.slates.map((s) => ({ ...s, vpName: vp.name, electionTitle: vp.election?.title ?? '' })))
+  const topCandidates = filteredVotingPoints
+    .flatMap((vp) => vp.candidates.map((c) => ({ ...c, vpName: vp.name, electionTitle: vp.election?.title ?? '' })))
     .sort((a, b) => (b.vote_count || 0) - (a.vote_count || 0))
     .slice(0, 8);
 
@@ -848,7 +848,7 @@ export default function ReportsPage() {
         <TabsList>
           <TabsTrigger value="overview">Resumen Visual</TabsTrigger>
           <TabsTrigger value="points">Detalle por Punto</TabsTrigger>
-          <TabsTrigger value="slates">Detalle por Plancha</TabsTrigger>
+          <TabsTrigger value="candidates">Detalle por Candidato</TabsTrigger>
         </TabsList>
 
         {/* TAB: Resumen Visual */}
@@ -924,36 +924,36 @@ export default function ReportsPage() {
                 </Card>
               </div>
 
-              {/* Slate distribution: horizontal bar + pie (when specific election) */}
+              {/* Candidate distribution: horizontal bar + pie (when specific election) */}
               <div className={`grid gap-4 ${selectedElectionId !== 'all' ? 'lg:grid-cols-2' : ''}`}>
                 <Card className="p-4 sm:p-6">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-3">
                     <div>
-                      <CardTitle className="text-base sm:text-lg mb-1">Top planchas</CardTitle>
+                      <CardTitle className="text-base sm:text-lg mb-1">Top candidatos</CardTitle>
                       <CardDescription className="text-xs sm:text-sm">
                         {selectedElectionId !== 'all'
-                          ? 'Planchas con más votos en esta elección'
-                          : 'Planchas con más votos (todas las elecciones)'}
+                          ? 'Candidatos con más votos en esta elección'
+                          : 'Candidatos con más votos (todas las elecciones)'}
                       </CardDescription>
                     </div>
                     <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
-                      {topSlates.slice(0, 4).map((slate, i) => (
-                        <div key={slate.id} className="flex items-center gap-1.5">
-                          <div className="size-2.5 rounded-full" style={{ background: slateColors[i] }} />
-                          <span className="text-xs text-muted-foreground truncate max-w-[120px]">{slate.name}</span>
+                      {topCandidates.slice(0, 4).map((candidate, i) => (
+                        <div key={candidate.id} className="flex items-center gap-1.5">
+                          <div className="size-2.5 rounded-full" style={{ background: candidateColors[i] }} />
+                          <span className="text-xs text-muted-foreground truncate max-w-[120px]">{candidate.full_name}</span>
                         </div>
                       ))}
                     </div>
                   </div>
                   <ResponsiveContainer width="100%" height={350}>
-                    <BarChart data={topSlates} layout="vertical" margin={{ top: 5, right: 30, left: 120, bottom: 5 }}>
+                    <BarChart data={topCandidates} layout="vertical" margin={{ top: 5, right: 30, left: 120, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
                       <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12, fill: axisColor }} />
-                      <YAxis dataKey="name" type="category" width={110} tick={{ fontSize: 11, fill: axisColor }} />
-                      <Tooltip content={<TopSlatesCustomTooltip />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }} />
+                      <YAxis dataKey="full_name" type="category" width={110} tick={{ fontSize: 11, fill: axisColor }} />
+                      <Tooltip content={<TopCandidatesCustomTooltip />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }} />
                       <Bar dataKey="vote_count" radius={[0, 6, 6, 0]}>
-                        {topSlates.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={slateColors[index % slateColors.length]} />
+                        {topCandidates.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={candidateColors[index % candidateColors.length]} />
                         ))}
                       </Bar>
                     </BarChart>
@@ -961,16 +961,16 @@ export default function ReportsPage() {
                 </Card>
 
                 {/* Pie chart only when a specific election is selected */}
-                {selectedElectionId !== 'all' && slateAggregation.length > 0 && (
+                {selectedElectionId !== 'all' && candidateAggregation.length > 0 && (
                   <Card className="p-4 sm:p-6">
                     <div className="mb-6">
                       <CardTitle className="text-base sm:text-lg mb-1">Distribución de votos</CardTitle>
-                      <CardDescription className="text-xs sm:text-sm">Proporción de votos por plancha</CardDescription>
+                      <CardDescription className="text-xs sm:text-sm">Proporción de votos por candidato</CardDescription>
                     </div>
                     <ResponsiveContainer width="100%" height={350}>
                       <PieChart>
                         <Pie
-                          data={slateAggregation}
+                          data={candidateAggregation}
                           cx="50%"
                           cy="50%"
                           outerRadius={120}
@@ -979,7 +979,7 @@ export default function ReportsPage() {
                           label={({ name, percent }) => `${name} (${((percent ?? 0) * 100).toFixed(1)}%)`}
                           labelLine
                         >
-                          {slateAggregation.map((entry, i) => (
+                          {candidateAggregation.map((entry, i) => (
                             <Cell key={`pie-${i}`} fill={entry.fill} />
                           ))}
                         </Pie>
@@ -988,10 +988,10 @@ export default function ReportsPage() {
                     </ResponsiveContainer>
                     {/* Legend below pie */}
                     <div className="flex flex-wrap gap-3 mt-4 justify-center">
-                      {slateAggregation.map((s) => (
-                        <div key={s.name} className="flex items-center gap-1.5">
-                          <div className="size-2.5 rounded-full" style={{ background: s.fill }} />
-                          <span className="text-xs text-muted-foreground">{s.name}: {s.votes}</span>
+                      {candidateAggregation.map((c) => (
+                        <div key={c.name} className="flex items-center gap-1.5">
+                          <div className="size-2.5 rounded-full" style={{ background: c.fill }} />
+                          <span className="text-xs text-muted-foreground">{c.name}: {c.votes}</span>
                         </div>
                       ))}
                     </div>
@@ -1083,15 +1083,15 @@ export default function ReportsPage() {
           </Card>
         </TabsContent>
 
-        {/* TAB: Detalle por plancha */}
-        <TabsContent value="slates" className="mt-4">
+        {/* TAB: Detalle por candidato */}
+        <TabsContent value="candidates" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Detalle por plancha</CardTitle>
+              <CardTitle>Detalle por candidato</CardTitle>
               <CardDescription>
                 {selectedElectionId !== 'all'
-                  ? `Resultados parciales por punto y plancha — ${selectedElection?.title}`
-                  : 'Resultados de todas las planchas por punto'}
+                  ? `Resultados parciales por punto y candidato — ${selectedElection?.title}`
+                  : 'Resultados de todos los candidatos por punto'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1099,7 +1099,7 @@ export default function ReportsPage() {
                 <p className="text-muted-foreground text-center py-8">No hay datos para mostrar.</p>
               ) : (
                 filteredVotingPoints.map((vp) => {
-                  const totalVpVotes = vp.slates.reduce((a, s) => a + (s.vote_count || 0), 0);
+                  const totalVpVotes = vp.candidates.reduce((a, c) => a + (c.vote_count || 0), 0);
                   return (
                     <div key={vp.id} className="border rounded-lg">
                       <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3 bg-muted/50">
@@ -1110,41 +1110,44 @@ export default function ReportsPage() {
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline">{vp.slates.length} planchas</Badge>
+                          <Badge variant="outline">{vp.candidates.length} candidatos</Badge>
                           <Badge variant="outline">{totalVpVotes} votos</Badge>
                         </div>
                       </div>
-                      {vp.slates.length === 0 ? (
-                        <div className="px-4 py-3 text-sm text-muted-foreground">Sin planchas registradas</div>
+                      {vp.candidates.length === 0 ? (
+                        <div className="px-4 py-3 text-sm text-muted-foreground">Sin candidatos registrados</div>
                       ) : (
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>Plancha</TableHead>
+                              <TableHead>Candidato</TableHead>
                               <TableHead>Votos</TableHead>
                               <TableHead>% del punto</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {[...vp.slates]
+                            {[...vp.candidates]
                               .sort((a, b) => (b.vote_count || 0) - (a.vote_count || 0))
-                              .map((slate, i) => {
-                                const pct = totalVpVotes > 0 ? ((slate.vote_count / totalVpVotes) * 100).toFixed(1) : '0.0';
+                              .map((candidate, i) => {
+                                const pct = totalVpVotes > 0 ? ((candidate.vote_count / totalVpVotes) * 100).toFixed(1) : '0.0';
                                 return (
-                                  <TableRow key={slate.id}>
+                                  <TableRow key={candidate.id}>
                                     <TableCell className="font-medium">
                                       <div className="flex items-center gap-2">
-                                        <div className="size-2.5 rounded-full" style={{ background: slateColors[i % slateColors.length] }} />
-                                        {slate.name}
+                                        <div className="size-2.5 rounded-full" style={{ background: candidateColors[i % candidateColors.length] }} />
+                                        <div>
+                                          <span>{candidate.full_name}</span>
+                                          {candidate.role && <span className="text-xs text-muted-foreground ml-2">({candidate.role})</span>}
+                                        </div>
                                       </div>
                                     </TableCell>
-                                    <TableCell>{slate.vote_count}</TableCell>
+                                    <TableCell>{candidate.vote_count}</TableCell>
                                     <TableCell>
                                       <div className="flex items-center gap-2">
                                         <div className="h-2 w-12 rounded-full bg-muted overflow-hidden">
                                           <div
                                             className="h-full rounded-full transition-all"
-                                            style={{ width: `${Math.min(parseFloat(pct), 100)}%`, background: slateColors[i % slateColors.length] }}
+                                            style={{ width: `${Math.min(parseFloat(pct), 100)}%`, background: candidateColors[i % candidateColors.length] }}
                                           />
                                         </div>
                                         <span className="text-sm">{pct}%</span>
