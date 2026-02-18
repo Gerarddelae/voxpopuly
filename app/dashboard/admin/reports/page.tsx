@@ -629,6 +629,26 @@ export default function ReportsPage() {
             3: { cellWidth: 50 },
           },
         });
+
+        yPos = (doc as any).lastAutoTable.finalY + 10;
+      }
+
+      // Voto en Blanco consolidado
+      if (totalBlankVotes > 0) {
+        if (yPos > pageHeight - 30) {
+          doc.addPage();
+          yPos = 20;
+        }
+
+        doc.setFillColor(245, 245, 245);
+        doc.rect(15, yPos - 5, pageWidth - 30, 14, 'F');
+        doc.setFontSize(10);
+        doc.setTextColor(0);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Voto en Blanco (consolidado):', 20, yPos + 3);
+        doc.setFont('helvetica', 'normal');
+        doc.text(String(totalBlankVotes) + ' votos', 90, yPos + 3);
+        yPos += 15;
       }
 
       // Footer on all pages
@@ -706,8 +726,15 @@ export default function ReportsPage() {
 
   const topCandidates = filteredVotingPoints
     .flatMap((vp) => vp.candidates.map((c) => ({ ...c, vpName: vp.name, electionTitle: vp.election?.title ?? '' })))
+    .filter((c) => c.full_name !== 'Voto en Blanco')
     .sort((a, b) => (b.vote_count || 0) - (a.vote_count || 0))
     .slice(0, 8);
+
+  // Consolidar votos en blanco de todos los puntos
+  const totalBlankVotes = filteredVotingPoints.reduce((acc, vp) => {
+    const blankCandidate = vp.candidates.find((c) => c.full_name === 'Voto en Blanco');
+    return acc + (blankCandidate?.vote_count || 0);
+  }, 0);
 
   const getElectionStatusBadge = (e: ElectionInfo) => {
     const now = Date.now();

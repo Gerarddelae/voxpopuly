@@ -116,6 +116,14 @@ export async function PUT(
       );
     }
 
+    // Proteger candidato "Voto en Blanco" de ser renombrado
+    if (candidate.full_name === 'Voto en Blanco' && body.full_name !== 'Voto en Blanco') {
+      return NextResponse.json<ApiResponse>(
+        { success: false, error: 'No se puede renombrar el candidato "Voto en Blanco". Es un candidato del sistema.' },
+        { status: 400 }
+      );
+    }
+
     const { data: updatedCandidate, error: updateError } = await supabase
       .from('candidates')
       .update({
@@ -206,6 +214,14 @@ export async function DELETE(
     if (election && new Date(election.start_date) <= new Date()) {
       return NextResponse.json<ApiResponse>(
         { success: false, error: 'No se puede eliminar un candidato cuya elección ya ha iniciado' },
+        { status: 400 }
+      );
+    }
+
+    // Proteger candidato "Voto en Blanco" de ser eliminado
+    if (candidate.full_name === 'Voto en Blanco') {
+      return NextResponse.json<ApiResponse>(
+        { success: false, error: 'No se puede eliminar el candidato "Voto en Blanco". Es un candidato del sistema.' },
         { status: 400 }
       );
     }

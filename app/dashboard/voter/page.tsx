@@ -15,6 +15,7 @@ import {
   AlertCircle,
   UserCheck,
   UserCircle,
+  Ban,
   
 } from 'lucide-react';
 
@@ -205,7 +206,13 @@ export default function VoterPage() {
   }
 
   // Mostrar tarjetón de candidatos
-  const candidates = votingInfo.candidates || [];
+  const allCandidates = votingInfo.candidates || [];
+  // Ordenar: candidatos normales primero, "Voto en Blanco" al final
+  const candidates = [...allCandidates].sort((a, b) => {
+    const aBlank = a.full_name === 'Voto en Blanco' ? 1 : 0;
+    const bBlank = b.full_name === 'Voto en Blanco' ? 1 : 0;
+    return aBlank - bBlank;
+  });
   const canActuallyVote = votingInfo.canVote && candidates.length > 0;
   const electionStatus = votingInfo.election?.is_active ? 'Activa' : 'Inactiva';
   const period = `${votingInfo.election?.start_date ? new Date(votingInfo.election.start_date).toLocaleDateString('es-ES') : 'N/A'} - ${votingInfo.election?.end_date ? new Date(votingInfo.election.end_date).toLocaleDateString('es-ES') : 'N/A'}`;
@@ -316,10 +323,14 @@ export default function VoterPage() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {candidates.map((candidate) => (
+            {candidates.map((candidate) => {
+              const isBlankVote = candidate.full_name === 'Voto en Blanco';
+              return (
               <Card
                 key={candidate.id}
                 className={`transition-all flex flex-col ${
+                  isBlankVote ? 'border-dashed border-2' : ''
+                } ${
                   canActuallyVote
                     ? `${
                         selectedCandidate === candidate.id
@@ -333,7 +344,11 @@ export default function VoterPage() {
                 <CardContent className="pt-6 flex flex-col items-center text-center gap-3">
                   {/* Photo */}
                   <div className="relative">
-                    {candidate.photo_url ? (
+                    {isBlankVote ? (
+                      <div className="w-24 h-24 rounded-full bg-muted/50 flex items-center justify-center border-4 border-dashed border-muted-foreground/20 shadow-md">
+                        <Ban className="h-12 w-12 text-muted-foreground/40" />
+                      </div>
+                    ) : candidate.photo_url ? (
                       <img
                         src={candidate.photo_url}
                         alt={candidate.full_name}
@@ -353,8 +368,8 @@ export default function VoterPage() {
 
                   {/* Name & Role */}
                   <div>
-                    <p className="font-semibold text-lg">{candidate.full_name}</p>
-                    {candidate.role && (
+                    <p className={`font-semibold text-lg ${isBlankVote ? 'text-muted-foreground' : ''}`}>{candidate.full_name}</p>
+                    {candidate.role && !isBlankVote && (
                       <Badge variant="secondary" className="mt-1 text-xs">
                         {candidate.role}
                       </Badge>
@@ -362,7 +377,8 @@ export default function VoterPage() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+              );
+            })}
           </div>
 
           {/* Botón de confirmación */}

@@ -220,7 +220,12 @@ export function VotingPointDetailsDialog({
                             </div>
                           )}
                           <div className="flex-1">
-                            <p className="font-medium">{candidate.full_name}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium">{candidate.full_name}</p>
+                              {candidate.full_name === 'Voto en Blanco' && (
+                                <Badge variant="secondary" className="text-xs">Automático</Badge>
+                              )}
+                            </div>
                             {candidate.role && (
                               <p className="text-sm text-muted-foreground">{candidate.role}</p>
                             )}
@@ -229,22 +234,26 @@ export function VotingPointDetailsDialog({
                             <Badge variant="outline">
                               {candidate.vote_count} votos
                             </Badge>
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={() => handleEditCandidate(candidate)}
-                              title="Editar candidato"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={() => handleDeleteCandidate(candidate)}
-                              title="Eliminar candidato"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {candidate.full_name !== 'Voto en Blanco' && (
+                              <>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={() => handleEditCandidate(candidate)}
+                                  title="Editar candidato"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={() => handleDeleteCandidate(candidate)}
+                                  title="Eliminar candidato"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </div>
                       </CardContent>

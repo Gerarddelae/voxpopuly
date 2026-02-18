@@ -117,6 +117,20 @@ export async function POST(
       },
     });
 
+    // Auto-crear candidato "Voto en Blanco" por defecto
+    const { error: blankVoteError } = await supabase
+      .from('candidates')
+      .insert({
+        voting_point_id: votingPoint.id,
+        full_name: 'Voto en Blanco',
+        role: null,
+        photo_url: null,
+      });
+
+    if (blankVoteError) {
+      console.error('Error creating blank vote candidate:', blankVoteError);
+    }
+
     return NextResponse.json<ApiResponse<VotingPoint>>({
       success: true,
       data: votingPoint,
