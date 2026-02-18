@@ -27,6 +27,7 @@ interface VotingPointFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   electionId: string;
+  assignedDelegateIds?: string[];
   onSuccess: () => void;
 }
 
@@ -34,6 +35,7 @@ export function VotingPointFormDialog({
   open,
   onOpenChange,
   electionId,
+  assignedDelegateIds,
   onSuccess,
 }: VotingPointFormDialogProps) {
   const [loading, setLoading] = useState(false);
@@ -58,10 +60,15 @@ export function VotingPointFormDialog({
 
   const loadDelegates = async () => {
     try {
-      const response = await fetch('/api/delegates');
+      // El backend ya filtra globalmente los delegados asignados a cualquier punto
+      const response = await fetch('/api/delegates', {
+        cache: 'no-store',
+      });
       const result = await response.json();
       if (result.success) {
-        setDelegates(result.data);
+        const data: Profile[] = result.data || [];
+        console.log('[VotingPointForm] Available delegates:', data.length);
+        setDelegates(data);
       }
     } catch (error) {
       console.error('Error loading delegates:', error);
@@ -164,9 +171,12 @@ export function VotingPointFormDialog({
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
-                Puedes asignar un delegado más tarde
-              </p>
+                <p className="text-xs text-muted-foreground">
+                  Puedes asignar un delegado más tarde
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Nota: los delegados ya asignados a otra mesa no aparecen en este listado.
+                </p>
             </div>
           </div>
 

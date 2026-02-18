@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Crear elección
+    // Crear elección (por defecto no activada)
     const { data: election, error } = await supabase
       .from('elections')
       .insert({
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
         description: body.description || null,
         start_date: body.start_date,
         end_date: body.end_date,
-        is_active: true,
+        is_active: false,
         created_by: user.id,
       })
       .select()

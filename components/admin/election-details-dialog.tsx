@@ -76,6 +76,8 @@ export function ElectionDetailsDialog({
     loadElectionDetails();
   };
 
+  const assignedDelegateIds = election?.voting_points?.map((vp) => vp.delegate_id).filter(Boolean) as string[] | undefined;
+
   const handleVpUpdate = () => {
     loadElectionDetails();
     // Actualizar el selectedVotingPoint con los datos más recientes
@@ -177,12 +179,10 @@ export function ElectionDetailsDialog({
                     <p className="text-sm text-muted-foreground">
                       Gestiona los puntos de votación para esta elección
                     </p>
-                    {new Date(election.start_date) > new Date() && (
-                      <Button size="sm" onClick={handleAddVotingPoint}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Agregar punto
-                      </Button>
-                    )}
+                    <Button size="sm" onClick={handleAddVotingPoint}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Agregar punto
+                    </Button>
                   </div>
 
                   {!election.voting_points || election.voting_points.length === 0 ? (
@@ -192,12 +192,10 @@ export function ElectionDetailsDialog({
                         <p className="text-muted-foreground mb-4">
                           No hay puntos de votación creados
                         </p>
-                        {new Date(election.start_date) > new Date() && (
-                          <Button onClick={handleAddVotingPoint}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Crear primer punto de votación
-                          </Button>
-                        )}
+                        <Button onClick={handleAddVotingPoint}>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Crear primer punto de votación
+                        </Button>
                       </CardContent>
                     </Card>
                   ) : (
@@ -253,6 +251,7 @@ export function ElectionDetailsDialog({
             open={vpFormOpen}
             onOpenChange={setVpFormOpen}
             electionId={electionId}
+            assignedDelegateIds={assignedDelegateIds}
             onSuccess={handleVpFormSuccess}
           />
 

@@ -37,10 +37,10 @@ export async function POST(
       );
     }
 
-    // Verificar que la elección existe y no ha iniciado
+    // Verificar que la elección existe
     const { data: election } = await supabase
       .from('elections')
-      .select('start_date')
+      .select('id')
       .eq('id', electionId)
       .single();
 
@@ -48,13 +48,6 @@ export async function POST(
       return NextResponse.json<ApiResponse>(
         { success: false, error: 'Elección no encontrada' },
         { status: 404 }
-      );
-    }
-
-    if (new Date(election.start_date) <= new Date()) {
-      return NextResponse.json<ApiResponse>(
-        { success: false, error: 'No se puede modificar una elección que ya ha iniciado' },
-        { status: 400 }
       );
     }
 
@@ -158,6 +151,7 @@ export async function GET(
     }
 
     // Obtener puntos de votación
+    console.log('[VotingPoints API] Fetching voting points for election:', electionId);
     const { data: votingPoints, error } = await supabase
       .from('voting_points')
       .select(`
@@ -182,6 +176,13 @@ export async function GET(
         { status: 500 }
       );
     }
+
+    console.log('[VotingPoints API] Found voting points:', votingPoints?.length || 0);
+    console.log('[VotingPoints API] Voting points data:', votingPoints?.map((vp: any) => ({
+      id: vp.id,
+      name: vp.name,
+      delegate_id: vp.delegate_id
+    })));
 
     return NextResponse.json<ApiResponse<VotingPoint[]>>({
       success: true,

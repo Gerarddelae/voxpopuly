@@ -75,10 +75,22 @@ export function VotingPointEditDialog({
 
   const loadDelegates = async () => {
     try {
-      const response = await fetch('/api/delegates');
+      // Excluir delegados ya asignados globalmente, permitiendo el delegado actual del punto
+      const params = new URLSearchParams();
+      if (votingPoint.delegate_id) params.set('allowDelegateId', votingPoint.delegate_id);
+      console.log('[VP Edit] Loading delegates', {
+        allowDelegateId: votingPoint.delegate_id,
+        url: `/api/delegates?${params.toString()}`,
+      });
+      const response = await fetch(`/api/delegates?${params.toString()}`, {
+        cache: 'no-store',
+      });
       const result = await response.json();
+      console.log('[VP Edit] Delegates API response:', result);
       if (result.success) {
-        setDelegates(result.data);
+        const data: Profile[] = result.data || [];
+        console.log('[VP Edit] Delegates count from API:', data.length);
+        setDelegates(data);
       }
     } catch (error) {
       console.error('Error loading delegates:', error);
@@ -290,9 +302,12 @@ export function VotingPointEditDialog({
                         ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Asigna o cambia el delegado de este punto de votación
-                    </p>
+                      <p className="text-xs text-muted-foreground">
+                        Asigna o cambia el delegado de este punto de votación
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Nota: los delegados ya asignados a otra mesa no aparecen en este listado.
+                      </p>
                   </div>
                 </div>
 

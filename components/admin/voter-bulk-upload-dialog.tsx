@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { VotingPointFormDialog } from '@/components/admin/voting-point-form-dialog';
 import {
   Table,
   TableBody,
@@ -58,6 +59,7 @@ interface VotingPoint {
   id: string;
   name: string;
   location: string | null;
+  delegate_id: string | null;
 }
 
 interface ParsedVoter {
@@ -103,6 +105,7 @@ export function VoterBulkUploadDialog({
   const [selectedVotingPoint, setSelectedVotingPoint] = useState('');
   const [loadingElections, setLoadingElections] = useState(false);
   const [loadingPoints, setLoadingPoints] = useState(false);
+  const [vpFormOpen, setVpFormOpen] = useState(false);
 
   // CSV
   const [parsedVoters, setParsedVoters] = useState<ParsedVoter[]>([]);
@@ -145,16 +148,26 @@ export function VoterBulkUploadDialog({
   const loadVotingPoints = async (electionId: string) => {
     setLoadingPoints(true);
     try {
+      console.log('[BulkUpload] Loading voting points for election:', electionId);
       const res = await fetch(`/api/elections/${electionId}/voting-points`);
       const data = await res.json();
+      console.log('[BulkUpload] Voting points response:', data);
       if (data.success) {
-        setVotingPoints(data.data || []);
+        const points = data.data || [];
+        console.log('[BulkUpload] Setting voting points:', points.length, points);
+        setVotingPoints(points);
       }
-    } catch {
+    } catch (err) {
+      console.error('[BulkUpload] Error loading voting points:', err);
       setError('Error al cargar puntos de votación');
     } finally {
       setLoadingPoints(false);
     }
+  };
+
+  const handleVpCreated = () => {
+    setVpFormOpen(false);
+    if (selectedElection) loadVotingPoints(selectedElection);
   };
 
   const parseCSV = useCallback((text: string): ParsedVoter[] => {
@@ -337,7 +350,8 @@ export function VoterBulkUploadDialog({
   const selectedPointName = votingPoints.find((p) => p.id === selectedVotingPoint)?.name;
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <>
+      <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>
@@ -417,6 +431,15 @@ export function VoterBulkUploadDialog({
                     ))}
                   </SelectContent>
                 </Select>
+
+                {votingPoints.length === 0 && (
+                  <div className="pt-2">
+                    <Button size="sm" onClick={() => setVpFormOpen(true)}>
+                      <FileUp className="mr-2 h-4 w-4" />
+                      Crear punto de votación
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -692,6 +715,17 @@ export function VoterBulkUploadDialog({
           </div>
         )}
       </DialogContent>
-    </Dialog>
+      </Dialog>
+
+      {selectedElection && (
+        <VotingPointFormDialog
+          open={vpFormOpen}
+          onOpenChange={setVpFormOpen}
+          electionId={selectedElection}
+          assignedDelegateIds={votingPoints.map(p => p.delegate_id).filter(Boolean) as string[]}
+          onSuccess={handleVpCreated}
+        />
+      )}
+    </>
   );
 }
