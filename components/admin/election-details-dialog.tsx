@@ -76,6 +76,8 @@ export function ElectionDetailsDialog({
     loadElectionDetails();
   };
 
+  const assignedDelegateIds = election?.voting_points?.map((vp) => vp.delegate_id).filter(Boolean) as string[] | undefined;
+
   const handleVpUpdate = () => {
     loadElectionDetails();
     // Actualizar el selectedVotingPoint con los datos más recientes
@@ -158,9 +160,9 @@ export function ElectionDetailsDialog({
                       </div>
                       <div className="space-y-1">
                         <p className="text-2xl font-bold">
-                          {election.voting_points?.reduce((acc, vp) => acc + (vp.slates?.length || 0), 0) || 0}
+                          {election.voting_points?.reduce((acc, vp) => acc + (vp.candidates?.length || 0), 0) || 0}
                         </p>
-                        <p className="text-xs text-muted-foreground">Planchas totales</p>
+                        <p className="text-xs text-muted-foreground">Candidatos totales</p>
                       </div>
                       <div className="space-y-1">
                         <p className="text-2xl font-bold">
@@ -177,12 +179,10 @@ export function ElectionDetailsDialog({
                     <p className="text-sm text-muted-foreground">
                       Gestiona los puntos de votación para esta elección
                     </p>
-                    {new Date(election.start_date) > new Date() && (
-                      <Button size="sm" onClick={handleAddVotingPoint}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Agregar punto
-                      </Button>
-                    )}
+                    <Button size="sm" onClick={handleAddVotingPoint}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Agregar punto
+                    </Button>
                   </div>
 
                   {!election.voting_points || election.voting_points.length === 0 ? (
@@ -192,12 +192,10 @@ export function ElectionDetailsDialog({
                         <p className="text-muted-foreground mb-4">
                           No hay puntos de votación creados
                         </p>
-                        {new Date(election.start_date) > new Date() && (
-                          <Button onClick={handleAddVotingPoint}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Crear primer punto de votación
-                          </Button>
-                        )}
+                        <Button onClick={handleAddVotingPoint}>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Crear primer punto de votación
+                        </Button>
                       </CardContent>
                     </Card>
                   ) : (
@@ -226,7 +224,7 @@ export function ElectionDetailsDialog({
                             <div className="flex items-center gap-4 text-sm text-muted-foreground">
                               <div className="flex items-center">
                                 <Users className="mr-1 h-4 w-4" />
-                                {vp.slates?.length || 0} planchas
+                                {vp.candidates?.length || 0} candidatos
                               </div>
                               {vp.delegate && (
                                 <div className="flex items-center">
@@ -253,6 +251,7 @@ export function ElectionDetailsDialog({
             open={vpFormOpen}
             onOpenChange={setVpFormOpen}
             electionId={electionId}
+            assignedDelegateIds={assignedDelegateIds}
             onSuccess={handleVpFormSuccess}
           />
 

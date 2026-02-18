@@ -17,7 +17,7 @@ interface StatsPayload {
       end_date?: string;
     };
   };
-  slates: { id: string; name: string; vote_count?: number | null }[];
+  candidates: { id: string; full_name: string; role?: string | null; vote_count?: number | null }[];
   totalVotes: number;
 }
 
@@ -87,14 +87,17 @@ export default function DelegatePage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            {(stats.slates || []).map((s) => (
-              <div key={s.id} className="flex items-center justify-between border-b last:border-b-0 py-1">
-                <span>{s.name}</span>
-                <Badge variant="default">{s.vote_count ?? 0} votos</Badge>
+            {(stats.candidates || []).map((c) => (
+              <div key={c.id} className="flex items-center justify-between border-b last:border-b-0 py-1">
+                <div className="min-w-0">
+                  <span className="font-medium">{c.full_name}</span>
+                  {c.role && <span className="text-xs text-muted-foreground ml-2">({c.role})</span>}
+                </div>
+                <Badge variant="default">{c.vote_count ?? 0} votos</Badge>
               </div>
             ))}
-            {stats.slates.length === 0 && (
-              <p className="text-muted-foreground">Sin planchas registradas.</p>
+            {stats.candidates.length === 0 && (
+              <p className="text-muted-foreground">Sin candidatos registrados.</p>
             )}
           </CardContent>
         </Card>

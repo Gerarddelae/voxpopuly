@@ -40,7 +40,7 @@ export async function DELETE(
     // Verificar que el votante existe y pertenece al punto
     const { data: voter } = await supabase
       .from('voters')
-      .select('*, voting_point:voting_points!voters_voting_point_id_fkey(election:elections!voting_points_election_id_fkey(start_date))')
+      .select('*, voting_point:voting_points!voters_voting_point_id_fkey(election:elections!voting_points_election_id_fkey(is_active))')
       .eq('id', voterId)
       .eq('voting_point_id', votingPointId)
       .single();
@@ -60,11 +60,10 @@ export async function DELETE(
       );
     }
 
-    // Verificar que la elección no haya iniciado
-    const electionStartDate = new Date((voter.voting_point as any).election.start_date);
-    if (electionStartDate <= new Date()) {
+    // Verificar que la elección no esté activa
+    if ((voter.voting_point as any).election.is_active) {
       return NextResponse.json<ApiResponse>(
-        { success: false, error: 'No se puede modificar una elección que ya ha iniciado' },
+        { success: false, error: 'No se puede modificar una elección que está activa' },
         { status: 400 }
       );
     }

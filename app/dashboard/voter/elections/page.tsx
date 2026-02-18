@@ -11,6 +11,7 @@ interface VotingInfo {
   votingPoint?: any;
   canVote: boolean;
   slates?: any[];
+  candidates?: any[];
   isAssigned: boolean;
   message: string;
 }
@@ -79,7 +80,7 @@ export default function VoterElectionsPage() {
             <span>{period}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline">Planchas: {info.slates?.length || 0}</Badge>
+            <Badge variant="outline">Candidatos: {info.candidates?.length || 0}</Badge>
           </div>
         </CardContent>
       </Card>

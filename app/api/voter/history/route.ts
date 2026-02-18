@@ -49,9 +49,11 @@ export async function GET() {
       .select(`
         id,
         created_at,
-        slate:slates (
+        candidate:candidates (
           id,
-          name,
+          full_name,
+          role,
+          photo_url,
           voting_point:voting_points (
             id,
             name,

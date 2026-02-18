@@ -9,10 +9,10 @@ import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
 
-interface SlateStat {
+interface CandidateStat {
   id: string;
-  name: string;
-  description?: string | null;
+  full_name: string;
+  role?: string | null;
   vote_count: number;
 }
 
@@ -29,7 +29,7 @@ interface StatsPayload {
       end_date?: string;
     };
   };
-  slates: SlateStat[];
+  candidates: CandidateStat[];
   totalVotes: number;
 }
 
@@ -74,48 +74,45 @@ export default function DelegateResultsPage() {
         }
 
         // Crear nuevo canal de suscripción
-        const channel = supabase.channel(`slates-vp-${json.data.votingPoint.id}`);
+        const channel = supabase.channel(`candidates-vp-${json.data.votingPoint.id}`);
         channel.on('postgres_changes', {
           event: '*',
           schema: 'public',
-          table: 'slates',
+          table: 'candidates',
           filter: `voting_point_id=eq.${json.data.votingPoint.id}`,
         }, (payload) => {
           setStats((prev) => {
             if (!prev) return prev;
-            const updated = [...prev.slates];
+            const updated = [...prev.candidates];
             
             if (payload.eventType === 'DELETE') {
-              // Remover planilla eliminada
               const deletedId = (payload.old as any)?.id;
-              const filtered = updated.filter((s) => s.id !== deletedId);
-              const totalVotes = filtered.reduce((a, s) => a + (s.vote_count || 0), 0);
-              return { ...prev, slates: filtered, totalVotes };
+              const filtered = updated.filter((c) => c.id !== deletedId);
+              const totalVotes = filtered.reduce((a, c) => a + (c.vote_count || 0), 0);
+              return { ...prev, candidates: filtered, totalVotes };
             }
             
-            const row = payload.new as SlateStat;
-            const idx = updated.findIndex((s) => s.id === row.id);
+            const row = payload.new as CandidateStat;
+            const idx = updated.findIndex((c) => c.id === row.id);
             
             if (idx >= 0) {
-              // Actualizar planilla existente
               updated[idx] = { 
                 ...updated[idx], 
                 vote_count: row.vote_count ?? 0, 
-                name: row.name, 
-                description: row.description 
+                full_name: row.full_name, 
+                role: row.role 
               };
             } else {
-              // Agregar nueva planilla
               updated.push({ 
                 id: row.id, 
-                name: row.name, 
-                description: row.description, 
+                full_name: row.full_name, 
+                role: row.role, 
                 vote_count: row.vote_count ?? 0 
               });
             }
             
-            const totalVotes = updated.reduce((a, s) => a + (s.vote_count || 0), 0);
-            return { ...prev, slates: updated, totalVotes };
+            const totalVotes = updated.reduce((a, c) => a + (c.vote_count || 0), 0);
+            return { ...prev, candidates: updated, totalVotes };
           });
         });
         
@@ -159,16 +156,16 @@ export default function DelegateResultsPage() {
     );
   }
 
-  const { votingPoint, slates, totalVotes } = stats;
+  const { votingPoint, candidates, totalVotes } = stats;
   const election = votingPoint.election;
 
-  // Ordenar planchas por votos (descendente)
-  const sortedSlates = [...slates].sort((a, b) => (b.vote_count || 0) - (a.vote_count || 0));
+  // Ordenar candidatos por votos (descendente)
+  const sortedCandidates = [...candidates].sort((a, b) => (b.vote_count || 0) - (a.vote_count || 0));
   
   // Calcular porcentajes
-  const slatesWithPercentage = sortedSlates.map(slate => ({
-    ...slate,
-    percentage: totalVotes > 0 ? ((slate.vote_count || 0) / totalVotes * 100).toFixed(1) : '0.0'
+  const candidatesWithPercentage = sortedCandidates.map(candidate => ({
+    ...candidate,
+    percentage: totalVotes > 0 ? ((candidate.vote_count || 0) / totalVotes * 100).toFixed(1) : '0.0'
   }));
 
   const getPositionColor = (index: number) => {
@@ -246,7 +243,7 @@ export default function DelegateResultsPage() {
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.text('Pos.', 25, yPos);
-    doc.text('Plancha', 50, yPos);
+    doc.text('Candidato', 50, yPos);
     doc.text('Votos', pageWidth - 50, yPos, { align: 'right' });
     doc.text('Porcentaje', pageWidth - 20, yPos, { align: 'right' });
     yPos += 5;
@@ -256,9 +253,9 @@ export default function DelegateResultsPage() {
     doc.line(20, yPos, pageWidth - 20, yPos);
     yPos += 6;
     
-    // Datos de cada plancha
+    // Datos de cada candidato
     doc.setFont('helvetica', 'normal');
-    slatesWithPercentage.forEach((slate, index) => {
+    candidatesWithPercentage.forEach((candidate, index) => {
       if (yPos > 270) {
         doc.addPage();
         yPos = 20;
@@ -275,13 +272,13 @@ export default function DelegateResultsPage() {
       
       // Truncar nombre largo si es necesario
       const maxNameLength = 45;
-      const displayName = slate.name.length > maxNameLength 
-        ? slate.name.substring(0, maxNameLength) + '...' 
-        : slate.name;
+      const displayName = candidate.full_name.length > maxNameLength 
+        ? candidate.full_name.substring(0, maxNameLength) + '...' 
+        : candidate.full_name;
       doc.text(displayName, 50, yPos);
       
-      doc.text(`${slate.vote_count || 0}`, pageWidth - 50, yPos, { align: 'right' });
-      doc.text(`${slate.percentage}%`, pageWidth - 20, yPos, { align: 'right' });
+      doc.text(`${candidate.vote_count || 0}`, pageWidth - 50, yPos, { align: 'right' });
+      doc.text(`${candidate.percentage}%`, pageWidth - 20, yPos, { align: 'right' });
       yPos += 6;
     });
     
@@ -365,18 +362,18 @@ export default function DelegateResultsPage() {
         </div>
       </div>
 
-      {/* Grid de planchas - 2 columnas para aprovechar el espacio */}
-      {slatesWithPercentage.length === 0 ? (
+      {/* Grid de candidatos */}
+      {candidatesWithPercentage.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center">
-            <p className="text-lg text-muted-foreground">No hay planchas registradas.</p>
+            <p className="text-lg text-muted-foreground">No hay candidatos registrados.</p>
           </CardContent>
         </Card>
       ) : (
         <div className="grid gap-3 lg:grid-cols-2">
-          {slatesWithPercentage.map((slate, index) => (
+          {candidatesWithPercentage.map((candidate, index) => (
             <Card 
-              key={slate.id} 
+              key={candidate.id} 
               className={cn(
                 "relative overflow-hidden border-2 transition-all hover:shadow-lg",
                 index < 3 && "ring-1 ring-primary/30"
@@ -397,8 +394,11 @@ export default function DelegateResultsPage() {
                   {/* Contenido */}
                   <div className="flex-1 min-w-0 space-y-2">
                     <div className="flex items-baseline justify-between gap-3">
-                      <h3 className="text-lg font-bold truncate">{slate.name}</h3>
-                      <div className="text-3xl font-bold tabular-nums shrink-0">{slate.vote_count || 0}</div>
+                      <div className="min-w-0">
+                        <h3 className="text-lg font-bold truncate">{candidate.full_name}</h3>
+                        {candidate.role && <p className="text-sm text-muted-foreground">{candidate.role}</p>}
+                      </div>
+                      <div className="text-3xl font-bold tabular-nums shrink-0">{candidate.vote_count || 0}</div>
                     </div>
                     
                     {/* Barra de progreso */}
@@ -408,12 +408,12 @@ export default function DelegateResultsPage() {
                           "h-full bg-gradient-to-r rounded-md transition-all duration-1000 ease-out relative",
                           getPositionColor(index)
                         )}
-                        style={{ width: `${slate.percentage}%` }}
+                        style={{ width: `${candidate.percentage}%` }}
                       >
                         <div className="absolute inset-0 bg-white/20" />
                         <div className="absolute inset-0 flex items-center justify-end pr-3">
                           <span className="text-sm font-bold text-white drop-shadow-md">
-                            {slate.percentage}%
+                            {candidate.percentage}%
                           </span>
                         </div>
                       </div>

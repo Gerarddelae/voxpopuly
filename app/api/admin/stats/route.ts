@@ -5,10 +5,10 @@ import type { ApiResponse } from '@/lib/types/database.types';
 
 export const dynamic = 'force-dynamic';
 
-type StatSlate = {
+type StatCandidate = {
   id: string;
-  name: string;
-  description?: string | null;
+  full_name: string;
+  role?: string | null;
   vote_count: number;
 };
 
@@ -28,7 +28,7 @@ type StatVotingPoint = {
     full_name: string;
     document: string;
   } | null;
-  slates: StatSlate[];
+  candidates: StatCandidate[];
   totalVoters: number;
   votedCount: number;
   totalVotes: number;
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
         location,
         election:elections (id, title, is_active, start_date, end_date),
         delegate:profiles (id, full_name, document),
-        slates:slates (id, name, description, vote_count),
+        candidates:candidates (id, full_name, role, vote_count),
         voters:voters (id, has_voted)
       `)
       .order('name');
@@ -95,17 +95,17 @@ export async function GET(request: NextRequest) {
     }
 
     const votingPoints: StatVotingPoint[] = (rows || []).map((vp) => {
-      const slates: StatSlate[] = (vp.slates || []).map((s: any) => ({
-        id: s.id,
-        name: s.name,
-        description: s.description,
-        vote_count: s.vote_count ?? 0,
+      const candidates: StatCandidate[] = (vp.candidates || []).map((c: any) => ({
+        id: c.id,
+        full_name: c.full_name,
+        role: c.role,
+        vote_count: c.vote_count ?? 0,
       }));
 
       const voters = vp.voters || [];
       const totalVoters = voters.length;
       const votedCount = voters.filter((v: any) => v.has_voted).length;
-      const totalVotes = slates.reduce((acc, s) => acc + (s.vote_count || 0), 0);
+      const totalVotes = candidates.reduce((acc, c) => acc + (c.vote_count || 0), 0);
 
       return {
         id: vp.id,
@@ -113,7 +113,7 @@ export async function GET(request: NextRequest) {
         location: vp.location,
         election: Array.isArray(vp.election) ? vp.election[0] ?? null : vp.election || null,
         delegate: Array.isArray(vp.delegate) ? vp.delegate[0] ?? null : vp.delegate || null,
-        slates,
+        candidates,
         totalVoters,
         votedCount,
         totalVotes,
@@ -167,10 +167,10 @@ export async function GET(request: NextRequest) {
     const format = request.nextUrl.searchParams.get('format');
     if (format === 'csv') {
       const lines: string[] = [];
-      lines.push('election_title,voting_point,location,delegate,total_voters,voters_voted,participation_pct,slate,slate_votes');
+      lines.push('election_title,voting_point,location,delegate,total_voters,voters_voted,participation_pct,candidate,candidate_votes');
       votingPoints.forEach((vp) => {
         const participation = vp.totalVoters > 0 ? ((vp.votedCount / vp.totalVoters) * 100).toFixed(2) : '0.00';
-        if (vp.slates.length === 0) {
+        if (vp.candidates.length === 0) {
           lines.push([
             escapeCsv(vp.election?.title || 'Sin elección'),
             escapeCsv(vp.name),
@@ -179,12 +179,12 @@ export async function GET(request: NextRequest) {
             vp.totalVoters,
             vp.votedCount,
             participation,
-            'Sin planchas',
+            'Sin candidatos',
             0,
           ].join(','));
           return;
         }
-        vp.slates.forEach((slate) => {
+        vp.candidates.forEach((candidate) => {
           lines.push([
             escapeCsv(vp.election?.title || 'Sin elección'),
             escapeCsv(vp.name),
@@ -193,8 +193,8 @@ export async function GET(request: NextRequest) {
             vp.totalVoters,
             vp.votedCount,
             participation,
-            escapeCsv(slate.name),
-            slate.vote_count ?? 0,
+            escapeCsv(candidate.full_name),
+            candidate.vote_count ?? 0,
           ].join(','));
         });
       });

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import type { VotingPoint, VotingPointFormData, Profile, SlateWithDetails, Voter } from '@/lib/types/database.types';
+import type { VotingPoint, VotingPointFormData, Profile, Candidate, Voter } from '@/lib/types/database.types';
 import {
   Dialog,
   DialogContent,
@@ -23,11 +23,13 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, UserPlus, Plus, Edit, Trash2, Users, UserCheck, UserCircle } from 'lucide-react';
+import { Loader2, UserPlus, Plus, Edit, Trash2, Users, UserCheck, UserCircle, Upload } from 'lucide-react';
 import { DelegateFormDialog } from './delegate-form-dialog';
-import { SlateFormDialog } from './slate-form-dialog';
-import { SlateEditDialog } from './slate-edit-dialog';
+import { CandidateFormDialog } from './candidate-form-dialog';
+import { CandidateEditDialog } from './candidate-edit-dialog';
 import { VoterAssignInline } from './voter-assign-dialog';
+import { VoterFormDialog } from './voter-form-dialog';
+import { VoterBulkUploadDialog } from './voter-bulk-upload-dialog';
 
 interface VotingPointEditDialogProps {
   open: boolean;
@@ -44,13 +46,15 @@ export function VotingPointEditDialog({
 }: VotingPointEditDialogProps) {
   const [loading, setLoading] = useState(false);
   const [delegates, setDelegates] = useState<Profile[]>([]);
-  const [slates, setSlates] = useState<SlateWithDetails[]>([]);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [voters, setVoters] = useState<Voter[]>([]);
   const [delegateFormOpen, setDelegateFormOpen] = useState(false);
-  const [slateFormOpen, setSlateFormOpen] = useState(false);
-  const [slateEditOpen, setSlateEditOpen] = useState(false);
+  const [candidateFormOpen, setCandidateFormOpen] = useState(false);
+  const [candidateEditOpen, setCandidateEditOpen] = useState(false);
   const [showAssignVoters, setShowAssignVoters] = useState(false);
-  const [selectedSlate, setSelectedSlate] = useState<SlateWithDetails | null>(null);
+  const [voterFormOpen, setVoterFormOpen] = useState(false);
+  const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
+  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [activeTab, setActiveTab] = useState('info');
   const [formData, setFormData] = useState<VotingPointFormData>({
     name: votingPoint.name,
@@ -61,7 +65,7 @@ export function VotingPointEditDialog({
   useEffect(() => {
     if (open) {
       loadDelegates();
-      loadSlates();
+      loadCandidates();
       loadVoters();
       setFormData({
         name: votingPoint.name,
@@ -75,25 +79,37 @@ export function VotingPointEditDialog({
 
   const loadDelegates = async () => {
     try {
-      const response = await fetch('/api/delegates');
+      // Excluir delegados ya asignados globalmente, permitiendo el delegado actual del punto
+      const params = new URLSearchParams();
+      if (votingPoint.delegate_id) params.set('allowDelegateId', votingPoint.delegate_id);
+      console.log('[VP Edit] Loading delegates', {
+        allowDelegateId: votingPoint.delegate_id,
+        url: `/api/delegates?${params.toString()}`,
+      });
+      const response = await fetch(`/api/delegates?${params.toString()}`, {
+        cache: 'no-store',
+      });
       const result = await response.json();
+      console.log('[VP Edit] Delegates API response:', result);
       if (result.success) {
-        setDelegates(result.data);
+        const data: Profile[] = result.data || [];
+        console.log('[VP Edit] Delegates count from API:', data.length);
+        setDelegates(data);
       }
     } catch (error) {
       console.error('Error loading delegates:', error);
     }
   };
 
-  const loadSlates = async () => {
+  const loadCandidates = async () => {
     try {
-      const response = await fetch(`/api/voting-points/${votingPoint.id}/slates`);
+      const response = await fetch(`/api/voting-points/${votingPoint.id}/candidates`);
       const result = await response.json();
       if (result.success) {
-        setSlates(result.data);
+        setCandidates(result.data);
       }
     } catch (error) {
-      console.error('Error loading slates:', error);
+      console.error('Error loading candidates:', error);
     }
   };
 
@@ -135,41 +151,41 @@ export function VotingPointEditDialog({
     }
   };
 
-  const handleEditSlate = (slate: SlateWithDetails) => {
-    setSelectedSlate(slate);
-    setSlateEditOpen(true);
+  const handleEditCandidate = (candidate: Candidate) => {
+    setSelectedCandidate(candidate);
+    setCandidateEditOpen(true);
   };
 
-  const handleSlateEditSuccess = () => {
-    setSlateEditOpen(false);
-    setSelectedSlate(null);
-    loadSlates();
+  const handleCandidateEditSuccess = () => {
+    setCandidateEditOpen(false);
+    setSelectedCandidate(null);
+    loadCandidates();
   };
 
-  const handleSlateFormSuccess = () => {
-    setSlateFormOpen(false);
-    loadSlates();
+  const handleCandidateFormSuccess = () => {
+    setCandidateFormOpen(false);
+    loadCandidates();
   };
 
-  const handleDeleteSlate = async (slate: SlateWithDetails) => {
-    if (!confirm(`¿Estás seguro de eliminar la plancha "${slate.name}"?`)) {
+  const handleDeleteCandidate = async (candidate: Candidate) => {
+    if (!confirm(`¿Estás seguro de eliminar al candidato "${candidate.full_name}"?`)) {
       return;
     }
 
     try {
-      const response = await fetch(`/api/slates/${slate.id}`, {
+      const response = await fetch(`/api/candidates/${candidate.id}`, {
         method: 'DELETE',
       });
       const result = await response.json();
 
       if (result.success) {
-        loadSlates();
+        loadCandidates();
       } else {
         alert(`Error: ${result.error}`);
       }
     } catch (error) {
-      console.error('Error deleting slate:', error);
-      alert('Error al eliminar la plancha');
+      console.error('Error deleting candidate:', error);
+      alert('Error al eliminar el candidato');
     }
   };
 
@@ -209,15 +225,15 @@ export function VotingPointEditDialog({
           <DialogHeader>
             <DialogTitle>Editar Punto de Votación</DialogTitle>
             <DialogDescription>
-              Modifica la información del punto de votación y gestiona sus planchas
+              Modifica la información del punto de votación y gestiona sus candidatos
             </DialogDescription>
           </DialogHeader>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="info">Información</TabsTrigger>
-              <TabsTrigger value="slates">
-                Planchas ({slates.length})
+              <TabsTrigger value="candidates">
+                Candidatos ({candidates.length})
               </TabsTrigger>
               <TabsTrigger value="voters">
                 Votantes ({voters.length})
@@ -290,9 +306,12 @@ export function VotingPointEditDialog({
                         ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Asigna o cambia el delegado de este punto de votación
-                    </p>
+                      <p className="text-xs text-muted-foreground">
+                        Asigna o cambia el delegado de este punto de votación
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Nota: los delegados ya asignados a otra mesa no aparecen en este listado.
+                      </p>
                   </div>
                 </div>
 
@@ -313,99 +332,86 @@ export function VotingPointEditDialog({
               </form>
             </TabsContent>
 
-            {/* Tab de Planchas */}
-            <TabsContent value="slates" className="space-y-4">
+            {/* Tab de Candidatos */}
+            <TabsContent value="candidates" className="space-y-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">
-                  Gestiona las planchas de candidatos para este punto de votación
+                  Gestiona los candidatos del tarjetón para este punto de votación
                 </p>
-                <Button size="sm" onClick={() => setSlateFormOpen(true)}>
+                <Button size="sm" onClick={() => setCandidateFormOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />
-                  Nueva plancha
+                  Nuevo candidato
                 </Button>
               </div>
 
-              {slates.length === 0 ? (
+              {candidates.length === 0 ? (
                 <Card>
                   <CardContent className="py-12 text-center">
                     <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                     <p className="text-muted-foreground mb-4">
-                      No hay planchas creadas para este punto de votación
+                      No hay candidatos en el tarjetón de este punto de votación
                     </p>
-                    <Button onClick={() => setSlateFormOpen(true)}>
+                    <Button onClick={() => setCandidateFormOpen(true)}>
                       <Plus className="mr-2 h-4 w-4" />
-                      Crear primera plancha
+                      Agregar primer candidato
                     </Button>
                   </CardContent>
                 </Card>
               ) : (
-                <div className="grid gap-4">
-                  {slates.map((slate) => (
-                    <Card key={slate.id}>
-                      <CardHeader>
-                        <div className="flex items-start justify-between gap-4">
+                <div className="grid gap-3">
+                  {candidates.map((candidate) => (
+                    <Card key={candidate.id}>
+                      <CardContent className="py-3">
+                        <div className="flex items-center gap-3">
+                          {candidate.photo_url ? (
+                            <img
+                              src={candidate.photo_url}
+                              alt={candidate.full_name}
+                              className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                              <UserCircle className="h-6 w-6 text-muted-foreground/50" />
+                            </div>
+                          )}
                           <div className="flex-1">
-                            <CardTitle className="text-lg">{slate.name}</CardTitle>
-                            {slate.description && (
-                              <CardDescription className="mt-1">
-                                {slate.description}
-                              </CardDescription>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium">{candidate.full_name}</p>
+                              {candidate.full_name === 'Voto en Blanco' && (
+                                <Badge variant="secondary" className="text-xs">Automático</Badge>
+                              )}
+                            </div>
+                            {candidate.role && (
+                              <p className="text-sm text-muted-foreground">{candidate.role}</p>
                             )}
                           </div>
                           <div className="flex items-center gap-2">
                             <Badge variant="outline">
-                              {slate.vote_count} votos
+                              {candidate.vote_count} votos
                             </Badge>
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={() => handleEditSlate(slate)}
-                              title="Editar plancha"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={() => handleDeleteSlate(slate)}
-                              title="Eliminar plancha"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {candidate.full_name !== 'Voto en Blanco' && (
+                              <>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={() => handleEditCandidate(candidate)}
+                                  title="Editar candidato"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={() => handleDeleteCandidate(candidate)}
+                                  title="Eliminar candidato"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </div>
-                      </CardHeader>
-                      {slate.members && slate.members.length > 0 && (
-                        <CardContent>
-                          <div className="space-y-2">
-                            <p className="text-sm font-medium">Candidatos:</p>
-                            <div className="grid gap-2">
-                              {slate.members.map((member) => (
-                                <div
-                                  key={member.id}
-                                  className="flex items-center gap-3 text-sm p-2 rounded-md bg-muted/50"
-                                >
-                                  {member.photo_url ? (
-                                    <img
-                                      src={member.photo_url}
-                                      alt={member.full_name}
-                                      className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-                                    />
-                                  ) : (
-                                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                                      <UserCircle className="h-5 w-5 text-muted-foreground/50" />
-                                    </div>
-                                  )}
-                                  <span className="font-medium flex-1">{member.full_name}</span>
-                                  {member.role && (
-                                    <span className="text-muted-foreground">{member.role}</span>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </CardContent>
-                      )}
+                      </CardContent>
                     </Card>
                   ))}
                 </div>
@@ -440,9 +446,21 @@ export function VotingPointEditDialog({
                     <p className="text-sm text-muted-foreground">
                       Gestiona los votantes autorizados para este punto de votación
                     </p>
+                  </div>
+
+                  {/* Action buttons group */}
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="outline" onClick={() => setVoterFormOpen(true)}>
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      Crear votante
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setBulkUploadOpen(true)}>
+                      <Upload className="mr-2 h-4 w-4" />
+                      Carga masiva
+                    </Button>
                     <Button size="sm" onClick={() => setShowAssignVoters(true)}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Asignar votantes
+                      <Users className="mr-2 h-4 w-4" />
+                      Asignar existentes
                     </Button>
                   </div>
 
@@ -450,13 +468,12 @@ export function VotingPointEditDialog({
                     <Card>
                       <CardContent className="py-12 text-center">
                         <UserCheck className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                        <p className="text-muted-foreground mb-4">
+                        <p className="text-muted-foreground mb-2">
                           No hay votantes asignados a este punto de votación
                         </p>
-                        <Button onClick={() => setShowAssignVoters(true)}>
-                          <Plus className="mr-2 h-4 w-4" />
-                          Asignar primeros votantes
-                        </Button>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Usa los botones de arriba para crear, cargar o asignar votantes
+                        </p>
                       </CardContent>
                     </Card>
                   ) : (
@@ -521,18 +538,38 @@ export function VotingPointEditDialog({
         }}
       />
 
-      <SlateFormDialog
-        open={slateFormOpen}
-        onOpenChange={setSlateFormOpen}
+      <CandidateFormDialog
+        open={candidateFormOpen}
+        onOpenChange={setCandidateFormOpen}
         votingPointId={votingPoint.id}
-        onSuccess={handleSlateFormSuccess}
+        onSuccess={handleCandidateFormSuccess}
       />
 
-      <SlateEditDialog
-        open={slateEditOpen}
-        onOpenChange={setSlateEditOpen}
-        slate={selectedSlate}
-        onSuccess={handleSlateEditSuccess}
+      <CandidateEditDialog
+        open={candidateEditOpen}
+        onOpenChange={setCandidateEditOpen}
+        candidate={selectedCandidate}
+        onSuccess={handleCandidateEditSuccess}
+      />
+
+      <VoterFormDialog
+        open={voterFormOpen}
+        onOpenChange={setVoterFormOpen}
+        votingPointId={votingPoint.id}
+        onSuccess={() => {
+          setVoterFormOpen(false);
+          loadVoters();
+        }}
+      />
+
+      <VoterBulkUploadDialog
+        open={bulkUploadOpen}
+        onOpenChange={setBulkUploadOpen}
+        votingPointId={votingPoint.id}
+        onSuccess={() => {
+          setBulkUploadOpen(false);
+          loadVoters();
+        }}
       />
 
 

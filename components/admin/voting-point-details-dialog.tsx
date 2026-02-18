@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { VotingPointWithDetails, SlateWithDetails } from '@/lib/types/database.types';
+import type { VotingPointWithDetails, Candidate } from '@/lib/types/database.types';
 import {
   Dialog,
   DialogContent,
@@ -10,11 +10,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, MapPin, User, Users, Edit, Trash2, UserCircle } from 'lucide-react';
-import { SlateFormDialog } from '@/components/admin/slate-form-dialog';
-import { SlateEditDialog } from '@/components/admin/slate-edit-dialog';
+import { CandidateFormDialog } from '@/components/admin/candidate-form-dialog';
+import { CandidateEditDialog } from '@/components/admin/candidate-edit-dialog';
 import { VotingPointEditDialog } from '@/components/admin/voting-point-edit-dialog';
 
 interface VotingPointDetailsDialogProps {
@@ -30,15 +30,15 @@ export function VotingPointDetailsDialog({
   votingPoint,
   onUpdate,
 }: VotingPointDetailsDialogProps) {
-  const [slateFormOpen, setSlateFormOpen] = useState(false);
-  const [slateEditOpen, setSlateEditOpen] = useState(false);
-  const [selectedSlate, setSelectedSlate] = useState<SlateWithDetails | null>(null);
+  const [candidateFormOpen, setCandidateFormOpen] = useState(false);
+  const [candidateEditOpen, setCandidateEditOpen] = useState(false);
+  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [editFormOpen, setEditFormOpen] = useState(false);
 
   if (!votingPoint) return null;
 
-  const handleAddSlate = () => {
-    setSlateFormOpen(true);
+  const handleAddCandidate = () => {
+    setCandidateFormOpen(true);
   };
 
   const handleEdit = () => {
@@ -68,47 +68,44 @@ export function VotingPointDetailsDialog({
     }
   };
 
-  const handleSlateFormSuccess = () => {
-    setSlateFormOpen(false);
-    // Re-fetch voting point details
+  const handleCandidateFormSuccess = () => {
+    setCandidateFormOpen(false);
     onOpenChange(false);
     setTimeout(() => onOpenChange(true), 100);
   };
 
-  const handleEditSlate = (slate: SlateWithDetails) => {
-    setSelectedSlate(slate);
-    setSlateEditOpen(true);
+  const handleEditCandidate = (candidate: Candidate) => {
+    setSelectedCandidate(candidate);
+    setCandidateEditOpen(true);
   };
 
-  const handleSlateEditSuccess = () => {
-    setSlateEditOpen(false);
-    setSelectedSlate(null);
-    // Re-fetch voting point details
+  const handleCandidateEditSuccess = () => {
+    setCandidateEditOpen(false);
+    setSelectedCandidate(null);
     onOpenChange(false);
     setTimeout(() => onOpenChange(true), 100);
   };
 
-  const handleDeleteSlate = async (slate: SlateWithDetails) => {
-    if (!confirm(`¿Estás seguro de eliminar la plancha "${slate.name}"?`)) {
+  const handleDeleteCandidate = async (candidate: Candidate) => {
+    if (!confirm(`¿Estás seguro de eliminar al candidato "${candidate.full_name}"?`)) {
       return;
     }
 
     try {
-      const response = await fetch(`/api/slates/${slate.id}`, {
+      const response = await fetch(`/api/candidates/${candidate.id}`, {
         method: 'DELETE',
       });
       const result = await response.json();
 
       if (result.success) {
-        // Re-fetch voting point details
         onOpenChange(false);
         setTimeout(() => onOpenChange(true), 100);
       } else {
         alert(`Error: ${result.error}`);
       }
     } catch (error) {
-      console.error('Error deleting slate:', error);
-      alert('Error al eliminar la plancha');
+      console.error('Error deleting candidate:', error);
+      alert('Error al eliminar el candidato');
     }
   };
 
@@ -180,99 +177,86 @@ export function VotingPointDetailsDialog({
               </CardContent>
             </Card>
 
-            {/* Slates Section */}
+            {/* Candidates Section */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold">
-                  Planchas ({votingPoint.slates?.length || 0})
+                  Candidatos ({votingPoint.candidates?.length || 0})
                 </h3>
-                <Button size="sm" onClick={handleAddSlate}>
+                <Button size="sm" onClick={handleAddCandidate}>
                   <Plus className="mr-2 h-4 w-4" />
-                  Agregar plancha
+                  Agregar candidato
                 </Button>
               </div>
 
-              {!votingPoint.slates || votingPoint.slates.length === 0 ? (
+              {!votingPoint.candidates || votingPoint.candidates.length === 0 ? (
                 <Card>
                   <CardContent className="py-12 text-center">
                     <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                     <p className="text-muted-foreground mb-4">
-                      No hay planchas creadas para este punto de votación
+                      No hay candidatos en el tarjetón de este punto de votación
                     </p>
-                    <Button onClick={handleAddSlate}>
+                    <Button onClick={handleAddCandidate}>
                       <Plus className="mr-2 h-4 w-4" />
-                      Crear primera plancha
+                      Agregar primer candidato
                     </Button>
                   </CardContent>
                 </Card>
               ) : (
-                <div className="grid gap-4">
-                  {votingPoint.slates.map((slate) => (
-                    <Card key={slate.id}>
-                      <CardHeader>
-                        <div className="flex items-start justify-between gap-4">
+                <div className="grid gap-3">
+                  {votingPoint.candidates.map((candidate) => (
+                    <Card key={candidate.id}>
+                      <CardContent className="py-3">
+                        <div className="flex items-center gap-3">
+                          {candidate.photo_url ? (
+                            <img
+                              src={candidate.photo_url}
+                              alt={candidate.full_name}
+                              className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                              <UserCircle className="h-7 w-7 text-muted-foreground/50" />
+                            </div>
+                          )}
                           <div className="flex-1">
-                            <CardTitle className="text-lg">{slate.name}</CardTitle>
-                            {slate.description && (
-                              <CardDescription className="mt-1">
-                                {slate.description}
-                              </CardDescription>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium">{candidate.full_name}</p>
+                              {candidate.full_name === 'Voto en Blanco' && (
+                                <Badge variant="secondary" className="text-xs">Automático</Badge>
+                              )}
+                            </div>
+                            {candidate.role && (
+                              <p className="text-sm text-muted-foreground">{candidate.role}</p>
                             )}
                           </div>
                           <div className="flex items-center gap-2">
                             <Badge variant="outline">
-                              {slate.vote_count} votos
+                              {candidate.vote_count} votos
                             </Badge>
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={() => handleEditSlate(slate)}
-                              title="Editar plancha"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={() => handleDeleteSlate(slate)}
-                              title="Eliminar plancha"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {candidate.full_name !== 'Voto en Blanco' && (
+                              <>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={() => handleEditCandidate(candidate)}
+                                  title="Editar candidato"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={() => handleDeleteCandidate(candidate)}
+                                  title="Eliminar candidato"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </div>
-                      </CardHeader>
-                      {slate.members && slate.members.length > 0 && (
-                        <CardContent>
-                          <div className="space-y-2">
-                            <p className="text-sm font-medium">Candidatos:</p>
-                            <div className="grid gap-2">
-                              {slate.members.map((member) => (
-                                <div
-                                  key={member.id}
-                                  className="flex items-center gap-3 text-sm p-2 rounded-md bg-muted/50"
-                                >
-                                  {member.photo_url ? (
-                                    <img
-                                      src={member.photo_url}
-                                      alt={member.full_name}
-                                      className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-                                    />
-                                  ) : (
-                                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                                      <UserCircle className="h-5 w-5 text-muted-foreground/50" />
-                                    </div>
-                                  )}
-                                  <span className="font-medium flex-1">{member.full_name}</span>
-                                  {member.role && (
-                                    <span className="text-muted-foreground">{member.role}</span>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </CardContent>
-                      )}
+                      </CardContent>
                     </Card>
                   ))}
                 </div>
@@ -282,18 +266,18 @@ export function VotingPointDetailsDialog({
         </DialogContent>
       </Dialog>
 
-      <SlateFormDialog
-        open={slateFormOpen}
-        onOpenChange={setSlateFormOpen}
+      <CandidateFormDialog
+        open={candidateFormOpen}
+        onOpenChange={setCandidateFormOpen}
         votingPointId={votingPoint.id}
-        onSuccess={handleSlateFormSuccess}
+        onSuccess={handleCandidateFormSuccess}
       />
 
-      <SlateEditDialog
-        open={slateEditOpen}
-        onOpenChange={setSlateEditOpen}
-        slate={selectedSlate}
-        onSuccess={handleSlateEditSuccess}
+      <CandidateEditDialog
+        open={candidateEditOpen}
+        onOpenChange={setCandidateEditOpen}
+        candidate={selectedCandidate}
+        onSuccess={handleCandidateEditSuccess}
       />
 
       <VotingPointEditDialog

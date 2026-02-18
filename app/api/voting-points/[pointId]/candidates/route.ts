@@ -1,10 +1,10 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
-import type { ApiResponse, Voter } from '@/lib/types/database.types';
+import type { ApiResponse, CandidateFormData, Candidate } from '@/lib/types/database.types';
 
 export const dynamic = 'force-dynamic';
 
-// POST - Asignar votante(s) a un punto de votación
+// POST - Crear candidato para un punto de votación
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ pointId: string }> }
@@ -23,7 +23,6 @@ export async function POST(
       );
     }
 
-    // Verificar que sea admin
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
@@ -58,65 +57,31 @@ export async function POST(
       );
     }
 
-    // Obtener profile_id(s) del body
-    const body = await request.json();
-    const profileIds: string[] = Array.isArray(body.profile_ids) 
-      ? body.profile_ids 
-      : [body.profile_id].filter(Boolean);
+    const body: CandidateFormData = await request.json();
 
-    if (profileIds.length === 0) {
+    if (!body.full_name) {
       return NextResponse.json<ApiResponse>(
-        { success: false, error: 'Debe proporcionar al menos un votante' },
+        { success: false, error: 'El nombre del candidato es requerido' },
         { status: 400 }
       );
     }
 
-    // Verificar que todos los profiles existen y tienen rol voter
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, role')
-      .in('id', profileIds);
-
-    if (!profiles || profiles.length !== profileIds.length) {
-      return NextResponse.json<ApiResponse>(
-        { success: false, error: 'Uno o más votantes no existen' },
-        { status: 400 }
-      );
-    }
-
-    const invalidProfiles = profiles.filter(p => p.role !== 'voter');
-    if (invalidProfiles.length > 0) {
-      return NextResponse.json<ApiResponse>(
-        { success: false, error: 'Todos los perfiles deben tener rol de votante' },
-        { status: 400 }
-      );
-    }
-
-    // Insertar votantes (ignorar duplicados)
-    const votersToInsert = profileIds.map(profileId => ({
-      profile_id: profileId,
-      voting_point_id: votingPointId,
-    }));
-
-    const { data: voters, error } = await supabase
-      .from('voters')
-      .upsert(votersToInsert, {
-        onConflict: 'profile_id,voting_point_id',
-        ignoreDuplicates: true,
+    // Crear candidato
+    const { data: candidate, error: candidateError } = await supabase
+      .from('candidates')
+      .insert({
+        voting_point_id: votingPointId,
+        full_name: body.full_name,
+        role: body.role || null,
+        photo_url: body.photo_url || null,
       })
-      .select(`
-        *,
-        profile:profiles!voters_profile_id_fkey (
-          id,
-          full_name,
-          document
-        )
-      `);
+      .select()
+      .single();
 
-    if (error) {
-      console.error('Error assigning voters:', error);
+    if (candidateError) {
+      console.error('Error creating candidate:', candidateError);
       return NextResponse.json<ApiResponse>(
-        { success: false, error: error.message },
+        { success: false, error: candidateError.message },
         { status: 500 }
       );
     }
@@ -124,22 +89,22 @@ export async function POST(
     // Registrar auditoría
     await supabase.from('audit_logs').insert({
       user_id: user.id,
-      action: 'voters_assigned',
-      entity_type: 'voting_point',
-      entity_id: votingPointId,
+      action: 'candidate_created',
+      entity_type: 'candidate',
+      entity_id: candidate.id,
       metadata: { 
-        voter_count: voters?.length || 0,
-        profile_ids: profileIds,
+        full_name: candidate.full_name,
+        voting_point_id: votingPointId
       },
     });
 
-    return NextResponse.json<ApiResponse<Voter[]>>({
+    return NextResponse.json<ApiResponse<Candidate>>({
       success: true,
-      data: voters || [],
-      message: `${voters?.length || 0} votante(s) asignado(s) exitosamente`,
+      data: candidate,
+      message: 'Candidato creado exitosamente',
     }, { status: 201 });
   } catch (error) {
-    console.error('POST /api/voting-points/[pointId]/voters error:', error);
+    console.error('POST /api/voting-points/[pointId]/candidates error:', error);
     return NextResponse.json<ApiResponse>(
       { success: false, error: 'Error interno del servidor' },
       { status: 500 }
@@ -147,7 +112,7 @@ export async function POST(
   }
 }
 
-// GET - Obtener votantes de un punto de votación
+// GET - Obtener candidatos de un punto de votación
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ pointId: string }> }
@@ -156,7 +121,6 @@ export async function GET(
     const supabase = await createClient();
     const { pointId: votingPointId } = await params;
 
-    // Verificar autenticación
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
@@ -166,34 +130,26 @@ export async function GET(
       );
     }
 
-    // Obtener votantes con información del perfil
-    const { data: voters, error } = await supabase
-      .from('voters')
-      .select(`
-        *,
-        profile:profiles!voters_profile_id_fkey (
-          id,
-          full_name,
-          document
-        )
-      `)
+    const { data: candidates, error } = await supabase
+      .from('candidates')
+      .select('*')
       .eq('voting_point_id', votingPointId)
-      .order('created_at', { ascending: false });
+      .order('full_name');
 
     if (error) {
-      console.error('Error fetching voters:', error);
+      console.error('Error fetching candidates:', error);
       return NextResponse.json<ApiResponse>(
         { success: false, error: error.message },
         { status: 500 }
       );
     }
 
-    return NextResponse.json<ApiResponse<Voter[]>>({
+    return NextResponse.json<ApiResponse<Candidate[]>>({
       success: true,
-      data: voters || [],
+      data: candidates || [],
     });
   } catch (error) {
-    console.error('GET /api/voting-points/[pointId]/voters error:', error);
+    console.error('GET /api/voting-points/[pointId]/candidates error:', error);
     return NextResponse.json<ApiResponse>(
       { success: false, error: 'Error interno del servidor' },
       { status: 500 }

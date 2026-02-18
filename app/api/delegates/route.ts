@@ -9,6 +9,9 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
+    const url = new URL(request.url);
+    const electionId = url.searchParams.get('electionId');
+    const allowDelegateId = url.searchParams.get('allowDelegateId');
 
     // Verificar autenticación y rol de admin
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -34,8 +37,36 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Obtener todos los delegados
-    const { data: delegates, error } = await supabase
+    // Excluir delegados ya asignados a CUALQUIER punto de votación (global)
+    let assignedIds: string[] = [];
+    {
+      console.log('[Delegates API] Fetching ALL assigned delegates globally');
+      const { data: assigned, error: assignedError } = await supabase
+        .from('voting_points')
+        .select('delegate_id')
+        .not('delegate_id', 'is', null);
+
+      if (assignedError) {
+        console.error('Error fetching assigned delegates:', assignedError);
+        return NextResponse.json<ApiResponse>(
+          { success: false, error: assignedError.message },
+          { status: 500 }
+        );
+      }
+
+      assignedIds = (assigned || []).map((a: any) => a.delegate_id).filter(Boolean);
+      console.log('[Delegates API] All globally assigned delegates:', assignedIds);
+
+      // Permitir el delegado del punto que se está editando (para no bloquearse a sí mismo)
+      if (allowDelegateId) {
+        console.log('[Delegates API] Allowing delegate (current):', allowDelegateId);
+        assignedIds = assignedIds.filter((id) => id !== allowDelegateId);
+      }
+      console.log('[Delegates API] Final exclusion list:', assignedIds);
+    }
+
+    // Obtener todos los delegados primero
+    const { data: allDelegates, error } = await supabase
       .from('profiles')
       .select('id, full_name, document, role, created_at, updated_at')
       .eq('role', 'delegate')
@@ -49,9 +80,23 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Filtrar los delegados asignados usando JavaScript
+    const delegates = assignedIds.length > 0
+      ? (allDelegates || []).filter(d => !assignedIds.includes(d.id))
+      : (allDelegates || []);
+
+    console.log('[Delegates API] All delegates count:', allDelegates?.length || 0);
+    console.log('[Delegates API] Filtered delegates count:', delegates.length);
+    console.log('[Delegates API] Returning delegates:', delegates.map(d => ({ id: d.id, name: d.full_name })));
+
     return NextResponse.json<ApiResponse<Profile[]>>({
       success: true,
-      data: delegates || [],
+      data: delegates,
+    }, {
+      // Evitar que el navegador reutilice una lista obsoleta de delegados
+      headers: {
+        'Cache-Control': 'no-store, max-age=0',
+      },
     });
   } catch (error) {
     console.error('GET /api/delegates error:', error);

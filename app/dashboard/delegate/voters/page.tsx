@@ -175,7 +175,15 @@ export default function DelegateVotersPage() {
                 </Badge>
                 {voter.voted_at && (
                   <span className="text-xs text-muted-foreground">
-                    {new Date(voter.voted_at).toLocaleString('es-ES')}
+                    {new Date(voter.voted_at.endsWith('Z') ? voter.voted_at : voter.voted_at + 'Z').toLocaleString('es-CO', {
+                      timeZone: 'America/Bogota',
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: true,
+                    })}
                   </span>
                 )}
               </div>
