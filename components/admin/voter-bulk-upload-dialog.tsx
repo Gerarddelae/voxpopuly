@@ -371,7 +371,7 @@ export function VoterBulkUploadDialog({
           </DialogTitle>
           <DialogDescription>
             {step === 'config' &&
-              'Suba un archivo CSV con los datos de los votantes. La contraseña será los últimos 4 dígitos del documento (repetidos para 8 caracteres).'}
+              'Suba un archivo CSV con los datos de los votantes. Se generará un PIN numérico aleatorio de 6 dígitos para cada votante.'}
             {step === 'preview' &&
               `${parsedVoters.length} votantes encontrados en el archivo`}
             {step === 'uploading' && 'Espere mientras se procesan los votantes...'}
@@ -565,14 +565,7 @@ export function VoterBulkUploadDialog({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {parsedVoters.map((voter, i) => {
-                    const docDigits = voter.document.replace(/\D/g, '');
-                    const pwd =
-                      docDigits.length >= 4
-                        ? docDigits.slice(-4) + docDigits.slice(-4)
-                        : voter.document.padEnd(8, '0');
-
-                    return (
+                  {parsedVoters.map((voter, i) => (
                       <TableRow key={i}>
                         <TableCell className="text-muted-foreground">{i + 1}</TableCell>
                         <TableCell className="font-medium">
@@ -589,13 +582,12 @@ export function VoterBulkUploadDialog({
                           <span className="text-destructive">Vacío</span>
                         )}</TableCell>
                         <TableCell>
-                          <code className="text-xs bg-muted px-2 py-0.5 rounded">
-                            {pwd}
-                          </code>
+                          <span className="text-xs text-muted-foreground italic">
+                            PIN aleatorio
+                          </span>
                         </TableCell>
                       </TableRow>
-                    );
-                  })}
+                    ))}
                 </TableBody>
               </Table>
             </ScrollArea>

@@ -112,10 +112,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validar longitud de contraseña
-    if (password.length < 8) {
+    // Validar longitud de contraseña (PIN de 6 dígitos mínimo)
+    if (password.length < 6) {
       return NextResponse.json<ApiResponse>(
-        { success: false, error: 'La contraseña debe tener al menos 8 caracteres' },
+        { success: false, error: 'La contraseña/PIN debe tener al menos 6 caracteres' },
         { status: 400 }
       );
     }

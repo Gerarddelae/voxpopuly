@@ -10,7 +10,7 @@ export default function Page() {
               <span className="text-3xl">📣</span>
               <h1 className="text-2xl sm:text-3xl font-extrabold">VoxPopuly</h1>
             </div>
-            <p className="text-sm text-muted-foreground mt-2">Make your voice count — create polls, gather results.</p>
+            <p className="text-sm text-muted-foreground mt-2">Haz que tu voz cuente — sistema de votación electrónica.</p>
           </div>
 
           <LoginForm />

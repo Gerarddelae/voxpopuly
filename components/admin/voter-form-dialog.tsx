@@ -38,13 +38,9 @@ export function VoterFormDialog({ open, onOpenChange, onSuccess, votingPointId }
   });
 
   const generatePassword = () => {
-    // Generar contraseña segura de 12 caracteres
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789@#$%&*';
-    let password = '';
-    for (let i = 0; i < 12; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    setFormData(prev => ({ ...prev, password }));
+    // Generar PIN numérico aleatorio de 6 dígitos
+    const pin = String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
+    setFormData(prev => ({ ...prev, password: pin }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -200,10 +196,10 @@ export function VoterFormDialog({ open, onOpenChange, onSuccess, votingPointId }
                       type={showPassword ? 'text' : 'password'}
                       value={formData.password}
                       onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                      placeholder="Mínimo 8 caracteres"
+                      placeholder="PIN de 6 dígitos"
                       required
                       disabled={loading}
-                      minLength={8}
+                      minLength={6}
                     />
                     <Button
                       type="button"
@@ -226,11 +222,11 @@ export function VoterFormDialog({ open, onOpenChange, onSuccess, votingPointId }
                     onClick={generatePassword}
                     disabled={loading}
                   >
-                    Generar
+                    Generar PIN
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Esta contraseña se compartirá con el votante para su primer acceso
+                  Este PIN se compartirá con el votante para su acceso de votación
                 </p>
               </div>
             </div>

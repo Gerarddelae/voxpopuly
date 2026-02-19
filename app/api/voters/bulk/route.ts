@@ -150,15 +150,8 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Generar contraseña: últimos 4 dígitos del documento
-        const docDigits = voter.document.replace(/\D/g, '');
-        let password: string;
-
-        if (docDigits.length >= 4) {
-          password = docDigits.slice(-4) + docDigits.slice(-4); // 8 chars minimum
-        } else {
-          password = voter.document.padEnd(8, '0');
-        }
+        // Generar PIN numérico aleatorio de 6 dígitos
+        const password = String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
 
         // Verificar si ya existe el documento
         const { data: existingProfile } = await adminClient
