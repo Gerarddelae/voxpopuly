@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { recordAudit } from '@/lib/server/audit';
 import type { ApiResponse } from '@/lib/types/database.types';
 
 export const dynamic = 'force-dynamic';
@@ -173,17 +174,18 @@ export async function POST(request: NextRequest) {
       // No revertimos aquí porque el voto ya está registrado
     }
 
-    // Registrar auditoría
-    await serviceClient.from('audit_logs').insert({
-      user_id: user.id,
+    // Registrar auditoría (ip anonimiz. usando helper central)
+    await recordAudit(serviceClient, {
+      request,
+      userId: user.id,
       action: 'vote_cast',
-      entity_type: 'vote',
-      entity_id: vote.id,
+      entityType: 'vote',
+      entityId: vote.id,
       metadata: {
         voting_point_id: voterRecord.voting_point_id,
         election_id: election.id,
-        candidate_id: candidate_id
-      }
+        candidate_id: candidate_id,
+      },
     });
 
     // Devolver el voted_at del registro de votante
