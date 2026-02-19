@@ -79,7 +79,15 @@ export default function VoterMyVotesPage() {
           {info.hasVoted ? (
             <Alert className="bg-green-50 dark:bg-green-950/60 border-green-200 dark:border-green-900">
               <AlertDescription>
-                <strong>Voto registrado:</strong> {new Date(info.votedAt || new Date()).toLocaleString('es-ES')}
+                <strong>Voto registrado:</strong> {info.votedAt ? new Date(info.votedAt.endsWith('Z') ? info.votedAt : info.votedAt + 'Z').toLocaleString('es-ES', {
+                  timeZone: 'America/Bogota',
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: true
+                }) : 'N/A'}
               </AlertDescription>
             </Alert>
           ) : (

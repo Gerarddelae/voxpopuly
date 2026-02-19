@@ -120,7 +120,7 @@ export async function PUT(
     // Verificar que la elección exista y decidir qué campos se pueden modificar
     const { data: existingElection } = await supabase
       .from('elections')
-      .select('start_date')
+      .select('start_date, is_active')
       .eq('id', id)
       .single();
 
@@ -131,17 +131,18 @@ export async function PUT(
       );
     }
 
-    const electionStarted = new Date(existingElection.start_date) <= new Date();
+    // Si la elección está activa, solo permitimos cambiar is_active (activar/desactivar)
+    // Consideramos que está "en curso" si is_active=true O si ya pasó su fecha de inicio
+    const electionInProgress = existingElection.is_active || new Date(existingElection.start_date) <= new Date();
 
-    // Si la elección ya inició, solo permitimos cambiar is_active (activar/desactivar)
-    const allowedKeysIfStarted = ['is_active'];
-    if (electionStarted) {
+    const allowedKeysIfInProgress = ['is_active'];
+    if (electionInProgress) {
       const invalidKeys = Object.keys(body).filter(
-        (k) => body[k as keyof typeof body] !== undefined && !allowedKeysIfStarted.includes(k)
+        (k) => body[k as keyof typeof body] !== undefined && !allowedKeysIfInProgress.includes(k)
       );
       if (invalidKeys.length > 0) {
         return NextResponse.json<ApiResponse>(
-          { success: false, error: 'Solo puedes activar/desactivar una elección que ya inició' },
+          { success: false, error: 'Solo puedes activar/desactivar una elección que está activa o ya inició' },
           { status: 400 }
         );
       }
@@ -239,10 +240,10 @@ export async function DELETE(
       );
     }
 
-    // Verificar que la elección no haya iniciado
+    // Verificar que la elección no esté activa ni haya iniciado
     const { data: existingElection } = await supabase
       .from('elections')
-      .select('start_date, title')
+      .select('start_date, title, is_active')
       .eq('id', id)
       .single();
 
@@ -253,9 +254,9 @@ export async function DELETE(
       );
     }
 
-    if (new Date(existingElection.start_date) <= new Date()) {
+    if (existingElection.is_active || new Date(existingElection.start_date) <= new Date()) {
       return NextResponse.json<ApiResponse>(
-        { success: false, error: 'No se puede eliminar una elección que ya ha iniciado' },
+        { success: false, error: 'No se puede eliminar una elección que está activa o ya ha iniciado' },
         { status: 400 }
       );
     }

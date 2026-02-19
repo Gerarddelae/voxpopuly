@@ -186,11 +186,14 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // Devolver el voted_at del registro de votante
+    const votedAt = new Date().toISOString();
+
     return NextResponse.json<ApiResponse>({
       success: true,
       message: '¡Voto registrado exitosamente!',
       data: {
-        voted_at: vote.created_at
+        voted_at: votedAt
       }
     });
   } catch (error) {

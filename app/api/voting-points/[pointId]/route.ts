@@ -98,7 +98,7 @@ export async function PUT(
     // Verificar que el punto de votación existe
     const { data: existingPoint } = await supabase
       .from('voting_points')
-      .select('*, election:elections!voting_points_election_id_fkey(start_date)')
+      .select('*, election:elections!voting_points_election_id_fkey(is_active)')
       .eq('id', pointId)
       .single();
 
@@ -109,10 +109,10 @@ export async function PUT(
       );
     }
 
-    // Verificar que la elección no haya iniciado
-    if (new Date((existingPoint.election as any).start_date) <= new Date()) {
+    // Verificar que la elección no esté activa
+    if ((existingPoint.election as any).is_active) {
       return NextResponse.json<ApiResponse>(
-        { success: false, error: 'No se puede modificar un punto de una elección que ya ha iniciado' },
+        { success: false, error: 'No se puede modificar un punto de una elección que está activa' },
         { status: 400 }
       );
     }
@@ -223,10 +223,10 @@ export async function DELETE(
       );
     }
 
-    // Verificar que el punto existe y su elección no ha iniciado
+    // Verificar que el punto existe y su elección no está activa
     const { data: existingPoint } = await supabase
       .from('voting_points')
-      .select('name, election:elections!voting_points_election_id_fkey(start_date)')
+      .select('name, election:elections!voting_points_election_id_fkey(is_active)')
       .eq('id', pointId)
       .single();
 
@@ -237,9 +237,9 @@ export async function DELETE(
       );
     }
 
-    if (new Date((existingPoint.election as any).start_date) <= new Date()) {
+    if ((existingPoint.election as any).is_active) {
       return NextResponse.json<ApiResponse>(
-        { success: false, error: 'No se puede eliminar un punto de una elección que ya ha iniciado' },
+        { success: false, error: 'No se puede eliminar un punto de una elección que está activa' },
         { status: 400 }
       );
     }

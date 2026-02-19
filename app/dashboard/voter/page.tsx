@@ -146,7 +146,15 @@ export default function VoterPage() {
               <div className="flex items-center gap-2 text-green-800 dark:text-green-200">
                 <Calendar className="h-4 w-4" />
                 <span>
-                  Votado el: {new Date(votingInfo.votedAt || new Date()).toLocaleString('es-ES')}
+                  Votado el: {votingInfo.votedAt ? new Date(votingInfo.votedAt.endsWith('Z') ? votingInfo.votedAt : votingInfo.votedAt + 'Z').toLocaleString('es-ES', {
+                    timeZone: 'America/Bogota',
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                  }) : 'N/A'}
                 </span>
               </div>
               <div className="flex items-center gap-2 text-green-800 dark:text-green-200">
