@@ -129,15 +129,29 @@ export function ElectionDetailsDialog({
                     </CardHeader>
                     <CardContent className="space-y-2">
                       <div>
-                        <p className="text-sm font-medium">Fecha de inicio</p>
+                        <p className="text-sm font-medium">Fecha y hora de inicio</p>
                         <p className="text-sm text-muted-foreground">
-                          {new Date(election.start_date).toLocaleString('es-ES')}
+                          {new Date(election.start_date).toLocaleString('es-CO', {
+                            day: '2-digit',
+                            month: 'long',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true
+                          })}
                         </p>
                       </div>
                       <div>
-                        <p className="text-sm font-medium">Fecha de fin</p>
+                        <p className="text-sm font-medium">Fecha y hora de fin</p>
                         <p className="text-sm text-muted-foreground">
-                          {new Date(election.end_date).toLocaleString('es-ES')}
+                          {new Date(election.end_date).toLocaleString('es-CO', {
+                            day: '2-digit',
+                            month: 'long',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true
+                          })}
                         </p>
                       </div>
                       <div>

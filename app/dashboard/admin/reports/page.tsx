@@ -175,7 +175,8 @@ export default function ReportsPage() {
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<StatsPayload | null>(null);
   const [selectedElectionId, setSelectedElectionId] = useState<string>('all');
-  const [activeTab, setActiveTab] = useState<string>('overview');
+  const [activeTab, setActiveTab] = useState<string>('monitor');
+  const [sortBy, setSortBy] = useState<string>('name');
   const supabase = useMemo(() => createClient(), []);
   const channelsRef = useRef<ReturnType<typeof supabase.channel>[]>([]);
 
@@ -258,6 +259,43 @@ export default function ReportsPage() {
       .sort((a, b) => b.votes - a.votes);
   }, [filteredVotingPoints]);
 
+  // Sorted voting points based on sortBy state
+  const sortedVotingPoints = useMemo(() => {
+    const sorted = [...filteredVotingPoints];
+    switch (sortBy) {
+      case 'participation-desc':
+        return sorted.sort((a, b) => {
+          const aP = a.totalVoters > 0 ? (a.votedCount / a.totalVoters) * 100 : 0;
+          const bP = b.totalVoters > 0 ? (b.votedCount / b.totalVoters) * 100 : 0;
+          return bP - aP;
+        });
+      case 'participation-asc':
+        return sorted.sort((a, b) => {
+          const aP = a.totalVoters > 0 ? (a.votedCount / a.totalVoters) * 100 : 0;
+          const bP = b.totalVoters > 0 ? (b.votedCount / b.totalVoters) * 100 : 0;
+          return aP - bP;
+        });
+      case 'votes-desc':
+        return sorted.sort((a, b) => b.totalVotes - a.totalVotes);
+      case 'name':
+      default:
+        return sorted.sort((a, b) => a.name.localeCompare(b.name));
+    }
+  }, [filteredVotingPoints, sortBy]);
+
+  // Pre-calculate top candidates for each voting point for Monitor tab
+  const topCandidatesByPoint = useMemo(() => {
+    const map = new Map<string, StatCandidate[]>();
+    sortedVotingPoints.forEach((vp) => {
+      const topCandidates = [...vp.candidates]
+        .filter(c => c.full_name !== 'Voto en Blanco')
+        .sort((a, b) => (b.vote_count || 0) - (a.vote_count || 0))
+        .slice(0, 3);
+      map.set(vp.id, topCandidates);
+    });
+    return map;
+  }, [sortedVotingPoints]);
+
   const recalcTotals = (votingPoints: StatVotingPoint[]) => {
     const agg = votingPoints.reduce((acc, vp) => {
       if (vp.election?.id) acc.elections.add(vp.election.id);
@@ -285,7 +323,7 @@ export default function ReportsPage() {
     const candidatesChannel = supabase
       .channel('admin-candidates-' + Date.now())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'candidates' }, (payload) => {
-        console.log('🔔 Candidate change', payload.eventType);
+        console.log('🔔 Candidate change', payload.eventType, payload.new);
         setStats((prev) => {
           if (!prev) return prev;
           let changed = false;
@@ -303,6 +341,7 @@ export default function ReportsPage() {
                 role: newCandidate?.role ?? nextCandidates[candidateIdx].role,
               };
               changed = true;
+              console.log(`✅ Updated candidate ${newCandidate.full_name} in ${vp.name}: ${newCandidate.vote_count} votes`);
               return { ...vp, candidates: nextCandidates, totalVotes: nextCandidates.reduce((a, c) => a + (c.vote_count || 0), 0) };
             }
 
@@ -751,6 +790,20 @@ export default function ReportsPage() {
     return new Date(d).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
+  const getParticipationColor = (participation: number): string => {
+    if (participation >= 60) return '#10b981'; // green
+    if (participation >= 40) return '#84cc16'; // yellow-green
+    if (participation >= 25) return '#f59e0b'; // yellow
+    if (participation >= 10) return '#f97316'; // orange
+    return '#ef4444'; // red
+  };
+
+  const getParticipationBadgeVariant = (participation: number): 'default' | 'secondary' | 'outline' => {
+    if (participation >= 60) return 'default';
+    if (participation >= 25) return 'outline';
+    return 'secondary';
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -873,13 +926,140 @@ export default function ReportsPage() {
       {/* Tabs for organized content */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="overview">Resumen Visual</TabsTrigger>
-          <TabsTrigger value="points">Detalle por Punto</TabsTrigger>
-          <TabsTrigger value="candidates">Detalle por Candidato</TabsTrigger>
+          <TabsTrigger value="monitor">Monitor en Vivo</TabsTrigger>
+          <TabsTrigger value="comparison">Comparación</TabsTrigger>
+          <TabsTrigger value="analysis">Análisis Detallado</TabsTrigger>
         </TabsList>
 
-        {/* TAB: Resumen Visual */}
-        <TabsContent value="overview" className="space-y-4 mt-4">
+        {/* TAB: Monitor en Vivo */}
+        <TabsContent value="monitor" className="space-y-4 mt-4">
+          {/* Sort Controls */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Ordenar por:</span>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name">Nombre</SelectItem>
+                <SelectItem value="participation-desc">Mayor Participación</SelectItem>
+                <SelectItem value="participation-asc">Menor Participación</SelectItem>
+                <SelectItem value="votes-desc">Más Votos</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {sortedVotingPoints.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                <Vote className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                <p>No hay puntos de votación para la elección seleccionada.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4">
+              {sortedVotingPoints.map((vp) => {
+                const participation = vp.totalVoters > 0 ? ((vp.votedCount / vp.totalVoters) * 100).toFixed(2) : '0.00';
+                const pctNum = parseFloat(participation);
+                const participationColor = getParticipationColor(pctNum);
+                const topCandidates = topCandidatesByPoint.get(vp.id) || [];
+                
+                return (
+                  <Card key={`${vp.id}-${vp.totalVotes}`} className="border-l-4 transition-all hover:shadow-md" style={{ borderLeftColor: participationColor }}>
+                    <CardContent className="pt-6">
+                      <div className="grid gap-6 md:grid-cols-[1fr_auto_1fr]">
+                        {/* Left: Mesa info and participation */}
+                        <div className="space-y-4">
+                          <div>
+                            <h3 className="text-lg font-bold mb-1">{vp.name}</h3>
+                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                              <MapPin className="h-3 w-3" />
+                              <span>{vp.location || 'Sin ubicación'}</span>
+                            </div>
+                            {vp.election && selectedElectionId === 'all' && (
+                              <p className="text-xs text-muted-foreground mt-1">{vp.election.title}</p>
+                            )}
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-5xl font-bold" style={{ color: participationColor }}>
+                                {pctNum.toFixed(0)}%
+                              </span>
+                              <span className="text-sm text-muted-foreground">participación</span>
+                            </div>
+                            <div className="h-3 w-full rounded-full bg-muted overflow-hidden">
+                              <div
+                                className="h-full rounded-full transition-all duration-500"
+                                style={{ width: `${Math.min(pctNum, 100)}%`, backgroundColor: participationColor }}
+                              />
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {vp.votedCount} de {vp.totalVoters} votantes
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Center: Divider */}
+                        <div className="hidden md:block border-l" />
+
+                        {/* Right: Top candidates */}
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                              Candidatos Líderes
+                            </h4>
+                            <Badge variant="outline" className="text-xs">
+                              {vp.totalVotes} votos totales
+                            </Badge>
+                          </div>
+                          
+                          {topCandidates.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">Sin candidatos registrados</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {topCandidates.map((candidate, i) => (
+                                <div key={candidate.id} className="flex items-center justify-between py-2 border-b last:border-b-0">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <div 
+                                      className="size-2 rounded-full flex-shrink-0" 
+                                      style={{ background: candidateColors[i % candidateColors.length] }} 
+                                    />
+                                    <span className="text-base font-medium truncate">{candidate.full_name}</span>
+                                  </div>
+                                  <Badge variant="secondary" className="text-base font-bold px-3 ml-2">
+                                    {candidate.vote_count}
+                                  </Badge>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Delegate info */}
+                          <div className="pt-3 border-t">
+                            <p className="text-xs text-muted-foreground">
+                              Delegado: <span className="font-medium">{vp.delegate?.full_name || 'Sin asignar'}</span>
+                            </p>
+                            {vp.election && (
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge variant={vp.election.is_active ? 'default' : 'secondary'} className="text-xs">
+                                  {vp.election.is_active ? 'Activa' : 'Cerrada'}
+                                </Badge>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* TAB: Comparación */}
+        <TabsContent value="comparison" className="space-y-4 mt-4">
           {filteredVotingPoints.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center text-muted-foreground">
@@ -895,14 +1075,14 @@ export default function ReportsPage() {
                   <div className="flex items-center justify-between mb-6">
                     <div>
                       <CardTitle className="text-base sm:text-lg mb-1">Votos por punto</CardTitle>
-                      <CardDescription className="text-xs sm:text-sm">Distribución total de votos</CardDescription>
+                      <CardDescription className="text-xs sm:text-sm">Vista comparativa entre todos los puntos</CardDescription>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <div className="size-2.5 rounded-full" style={{ background: '#6e3ff3' }} />
                       <span className="text-xs text-muted-foreground">Votos</span>
                     </div>
                   </div>
-                  <ResponsiveContainer width="100%" height={300}>
+                  <ResponsiveContainer width="100%" height={350}>
                     <BarChart data={barData} margin={{ top: 5, right: 10, left: 0, bottom: 60 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
                       <XAxis
@@ -925,14 +1105,14 @@ export default function ReportsPage() {
                   <div className="flex items-center justify-between mb-6">
                     <div>
                       <CardTitle className="text-base sm:text-lg mb-1">Participación por punto</CardTitle>
-                      <CardDescription className="text-xs sm:text-sm">% de votantes que ya sufragaron</CardDescription>
+                      <CardDescription className="text-xs sm:text-sm">Comparación de % entre todos los puntos</CardDescription>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <div className="size-2.5 rounded-full" style={{ background: '#35b9e9' }} />
                       <span className="text-xs text-muted-foreground">Participación</span>
                     </div>
                   </div>
-                  <ResponsiveContainer width="100%" height={300}>
+                  <ResponsiveContainer width="100%" height={350}>
                     <BarChart data={barData} margin={{ top: 5, right: 10, left: 0, bottom: 60 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
                       <XAxis
@@ -1029,11 +1209,12 @@ export default function ReportsPage() {
           )}
         </TabsContent>
 
-        {/* TAB: Detalle por punto */}
-        <TabsContent value="points" className="mt-4">
+        {/* TAB: Análisis Detallado */}
+        <TabsContent value="analysis" className="space-y-4 mt-4">
+          {/* Tabla resumen de puntos */}
           <Card>
             <CardHeader>
-              <CardTitle>Detalle por punto de votación</CardTitle>
+              <CardTitle>Tabla Resumen por Punto</CardTitle>
               <CardDescription>
                 {selectedElectionId !== 'all'
                   ? `Resultados en tiempo real — ${selectedElection?.title}`
@@ -1060,11 +1241,12 @@ export default function ReportsPage() {
                     {filteredVotingPoints.map((vp) => {
                       const participation = vp.totalVoters > 0 ? ((vp.votedCount / vp.totalVoters) * 100).toFixed(2) : '0.00';
                       const pctNum = parseFloat(participation);
+                      const participationColor = getParticipationColor(pctNum);
                       return (
                         <TableRow key={vp.id}>
                           <TableCell className="font-medium">
                             <div className="flex flex-col">
-                              <span>{vp.name}</span>
+                              <span className="text-base">{vp.name}</span>
                               <span className="text-xs text-muted-foreground flex items-center gap-1">
                                 <MapPin className="h-3 w-3" /> {vp.location || 'Sin ubicación'}
                               </span>
@@ -1075,22 +1257,24 @@ export default function ReportsPage() {
                               <span className="text-sm">{vp.election?.title || 'Sin elección'}</span>
                             </TableCell>
                           )}
-                          <TableCell>{vp.delegate?.full_name || 'Sin delegado'}</TableCell>
+                          <TableCell className="text-sm">{vp.delegate?.full_name || 'Sin delegado'}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <div className="h-2 w-16 rounded-full bg-muted overflow-hidden">
+                              <div className="h-3 w-24 rounded-full bg-muted overflow-hidden">
                                 <div
-                                  className="h-full rounded-full bg-primary transition-all"
-                                  style={{ width: `${Math.min(pctNum, 100)}%` }}
+                                  className="h-full rounded-full transition-all"
+                                  style={{ width: `${Math.min(pctNum, 100)}%`, backgroundColor: participationColor }}
                                 />
                               </div>
-                              <span className="text-sm">{participation}%</span>
+                              <span className="text-base font-semibold" style={{ color: participationColor }}>
+                                {participation}%
+                              </span>
                             </div>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="text-base">
                             {vp.votedCount} / {vp.totalVoters}
                           </TableCell>
-                          <TableCell>{vp.totalVotes}</TableCell>
+                          <TableCell className="text-base font-semibold">{vp.totalVotes}</TableCell>
                           <TableCell>
                             {vp.election ? (
                               <Badge variant={vp.election.is_active ? 'default' : 'secondary'}>
@@ -1108,13 +1292,11 @@ export default function ReportsPage() {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
 
-        {/* TAB: Detalle por candidato */}
-        <TabsContent value="candidates" className="mt-4">
+          {/* Detalle por candidato expandible */}
           <Card>
             <CardHeader>
-              <CardTitle>Detalle por candidato</CardTitle>
+              <CardTitle>Detalle por Candidato</CardTitle>
               <CardDescription>
                 {selectedElectionId !== 'all'
                   ? `Resultados parciales por punto y candidato — ${selectedElection?.title}`
@@ -1127,18 +1309,20 @@ export default function ReportsPage() {
               ) : (
                 filteredVotingPoints.map((vp) => {
                   const totalVpVotes = vp.candidates.reduce((a, c) => a + (c.vote_count || 0), 0);
+                  const participation = vp.totalVoters > 0 ? ((vp.votedCount / vp.totalVoters) * 100).toFixed(1) : '0.0';
                   return (
                     <div key={vp.id} className="border rounded-lg">
                       <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3 bg-muted/50">
                         <div>
-                          <p className="font-semibold">{vp.name}</p>
+                          <p className="font-semibold text-base">{vp.name}</p>
                           <p className="text-xs text-muted-foreground">
                             {vp.election?.title || 'Sin elección'} · {vp.location || 'Sin ubicación'}
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge variant="outline">{vp.candidates.length} candidatos</Badge>
-                          <Badge variant="outline">{totalVpVotes} votos</Badge>
+                          <Badge variant="outline" className="font-semibold">{totalVpVotes} votos</Badge>
+                          <Badge variant="secondary">{participation}% participación</Badge>
                         </div>
                       </div>
                       {vp.candidates.length === 0 ? (
@@ -1163,21 +1347,21 @@ export default function ReportsPage() {
                                       <div className="flex items-center gap-2">
                                         <div className="size-2.5 rounded-full" style={{ background: candidateColors[i % candidateColors.length] }} />
                                         <div>
-                                          <span>{candidate.full_name}</span>
+                                          <span className="text-base">{candidate.full_name}</span>
                                           {candidate.role && <span className="text-xs text-muted-foreground ml-2">({candidate.role})</span>}
                                         </div>
                                       </div>
                                     </TableCell>
-                                    <TableCell>{candidate.vote_count}</TableCell>
+                                    <TableCell className="text-base font-semibold">{candidate.vote_count}</TableCell>
                                     <TableCell>
                                       <div className="flex items-center gap-2">
-                                        <div className="h-2 w-12 rounded-full bg-muted overflow-hidden">
+                                        <div className="h-2 w-16 rounded-full bg-muted overflow-hidden">
                                           <div
                                             className="h-full rounded-full transition-all"
                                             style={{ width: `${Math.min(parseFloat(pct), 100)}%`, background: candidateColors[i % candidateColors.length] }}
                                           />
                                         </div>
-                                        <span className="text-sm">{pct}%</span>
+                                        <span className="text-sm font-medium">{pct}%</span>
                                       </div>
                                     </TableCell>
                                   </TableRow>

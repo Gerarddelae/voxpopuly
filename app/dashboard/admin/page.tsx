@@ -294,11 +294,28 @@ export default function AdminPage() {
                           {election.description}
                         </p>
                       )}
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(election.start_date).toLocaleDateString('es-ES')}
-                        {' - '}
-                        {new Date(election.end_date).toLocaleDateString('es-ES')}
-                      </p>
+                      <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                        <div>
+                          Inicio: {new Date(election.start_date).toLocaleString('es-CO', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true
+                          })}
+                        </div>
+                        <div>
+                          Fin: {new Date(election.end_date).toLocaleString('es-CO', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true
+                          })}
+                        </div>
+                      </div>
                     </div>
                     <Link href="/dashboard/admin/elections">
                       <Button variant="ghost" size="sm">

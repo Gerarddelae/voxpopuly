@@ -38,11 +38,24 @@ export function ElectionFormDialog({
 
   useEffect(() => {
     if (election) {
+      // Convert UTC to local datetime-local format (YYYY-MM-DDTHH:mm)
+      const startDate = new Date(election.start_date);
+      const endDate = new Date(election.end_date);
+      
+      const formatDateTimeLocal = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+      };
+
       setFormData({
         title: election.title,
         description: election.description || '',
-        start_date: election.start_date.split('T')[0],
-        end_date: election.end_date.split('T')[0],
+        start_date: formatDateTimeLocal(startDate),
+        end_date: formatDateTimeLocal(endDate),
       });
     } else {
       setFormData({
@@ -65,13 +78,19 @@ export function ElectionFormDialog({
       
       const method = election ? 'PUT' : 'POST';
 
+      // Convert datetime-local to ISO string
+      // datetime-local format: YYYY-MM-DDTHH:mm (in local time)
+      // We need to convert this to ISO format preserving the local time as-is
+      const startDateTime = new Date(formData.start_date);
+      const endDateTime = new Date(formData.end_date);
+
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          start_date: new Date(formData.start_date).toISOString(),
-          end_date: new Date(formData.end_date).toISOString(),
+          start_date: startDateTime.toISOString(),
+          end_date: endDateTime.toISOString(),
         }),
       });
 
@@ -134,35 +153,37 @@ export function ElectionFormDialog({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="start_date">
-                  Fecha de inicio <span className="text-destructive">*</span>
+                  Fecha y hora de inicio <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="start_date"
-                  type="date"
+                  type="datetime-local"
                   value={formData.start_date}
                   onChange={(e) =>
                     setFormData({ ...formData, start_date: e.target.value })
                   }
                   required
                 />
+                <p className="text-xs text-muted-foreground">Hora local de Colombia (COT)</p>
               </div>
 
               <div className="grid gap-2">
                 <Label htmlFor="end_date">
-                  Fecha de fin <span className="text-destructive">*</span>
+                  Fecha y hora de fin <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="end_date"
-                  type="date"
+                  type="datetime-local"
                   value={formData.end_date}
                   onChange={(e) =>
                     setFormData({ ...formData, end_date: e.target.value })
                   }
                   required
                 />
+                <p className="text-xs text-muted-foreground">Hora local de Colombia (COT)</p>
               </div>
             </div>
           </div>

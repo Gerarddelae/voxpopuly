@@ -144,8 +144,21 @@ export default function VotingPointsPage() {
                           <CardTitle className="text-xl">{election.title}</CardTitle>
                           <CardDescription className="flex items-center gap-2 mt-1">
                             <Calendar className="h-3 w-3" />
-                            {new Date(election.start_date).toLocaleDateString('es-ES')} -{' '}
-                            {new Date(election.end_date).toLocaleDateString('es-ES')}
+                            <span className="text-xs">
+                              {new Date(election.start_date).toLocaleString('es-CO', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })} - {new Date(election.end_date).toLocaleString('es-CO', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
                           </CardDescription>
                         </div>
                       </div>

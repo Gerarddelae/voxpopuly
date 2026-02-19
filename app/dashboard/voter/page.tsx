@@ -223,7 +223,21 @@ export default function VoterPage() {
   });
   const canActuallyVote = votingInfo.canVote && candidates.length > 0;
   const electionStatus = votingInfo.election?.is_active ? 'Activa' : 'Inactiva';
-  const period = `${votingInfo.election?.start_date ? new Date(votingInfo.election.start_date).toLocaleDateString('es-ES') : 'N/A'} - ${votingInfo.election?.end_date ? new Date(votingInfo.election.end_date).toLocaleDateString('es-ES') : 'N/A'}`;
+  const period = `${votingInfo.election?.start_date ? new Date(votingInfo.election.start_date).toLocaleString('es-CO', { 
+    year: 'numeric', 
+    month: '2-digit', 
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  }) : 'N/A'} - ${votingInfo.election?.end_date ? new Date(votingInfo.election.end_date).toLocaleString('es-CO', {
+    year: 'numeric', 
+    month: '2-digit', 
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  }) : 'N/A'}`;
 
   return (
     <div className="space-y-6">

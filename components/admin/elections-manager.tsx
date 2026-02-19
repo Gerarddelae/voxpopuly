@@ -192,11 +192,28 @@ export function ElectionsManager() {
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center text-muted-foreground">
                       <Calendar className="mr-2 h-4 w-4" />
-                      <span>
-                        {new Date(election.start_date).toLocaleDateString('es-ES')}
-                        {' - '}
-                        {new Date(election.end_date).toLocaleDateString('es-ES')}
-                      </span>
+                      <div className="flex flex-col">
+                        <span>
+                          Inicio: {new Date(election.start_date).toLocaleString('es-CO', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true
+                          })}
+                        </span>
+                        <span>
+                          Fin: {new Date(election.end_date).toLocaleString('es-CO', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true
+                          })}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
