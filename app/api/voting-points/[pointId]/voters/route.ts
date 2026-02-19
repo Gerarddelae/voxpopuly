@@ -1,4 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
+import { recordAudit } from '@/lib/server/audit';
 import { NextRequest, NextResponse } from 'next/server';
 import type { ApiResponse, Voter } from '@/lib/types/database.types';
 
@@ -122,16 +124,25 @@ export async function POST(
     }
 
     // Registrar auditoría
-    await supabase.from('audit_logs').insert({
-      user_id: user.id,
-      action: 'voters_assigned',
-      entity_type: 'voting_point',
-      entity_id: votingPointId,
-      metadata: { 
-        voter_count: voters?.length || 0,
-        profile_ids: profileIds,
-      },
-    });
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('SUPABASE_SERVICE_ROLE_KEY not configured; audit not recorded');
+    } else {
+      const serviceClient = createServiceClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+      await recordAudit(serviceClient, {
+        request,
+        userId: user.id,
+        action: 'voters_assigned',
+        entityType: 'voting_point',
+        entityId: votingPointId,
+        metadata: { 
+          voter_count: voters?.length || 0,
+          profile_ids: profileIds,
+        },
+      });
+    }
 
     return NextResponse.json<ApiResponse<Voter[]>>({
       success: true,

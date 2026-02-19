@@ -296,3 +296,92 @@ Para problemas de votación:
 **Estado:** ✅ Implementación completa
 **Fecha:** 15 de Febrero, 2026
 **Desarrollador:** Sistema VoxPopuly
+
+---
+
+## Actualización: Sistema de Auditoría (19 Feb 2026)
+
+### Problema Identificado
+Solo las acciones `vote_cast` se registraban en `audit_logs`. El resto de acciones administrativas (crear elección, actualizar candidatos, asignar votantes, etc.) no se guardaban debido a que:
+
+1. **Row Level Security (RLS)** está habilitado en la tabla `audit_logs`
+2. Las rutas API usaban clientes autenticados con contexto de usuario (subject to RLS)
+3. No existían políticas RLS que permitieran inserts de usuarios autenticados
+4. Los inserts fallaban silenciosamente sin verificación de errores
+5. Solo `vote_cast` funcionaba porque usaba service-role client o funciones DB con SECURITY DEFINER
+
+### Solución Implementada
+Se estandarizó el uso del helper `recordAudit()` con cliente service-role en todas las rutas API que registran auditoría:
+
+**Helper centralizado:** `lib/server/audit.ts`
+- Maneja anonimización de IP
+- Acepta cliente con permisos adecuados (service-role)
+- Maneja errores sin romper el flujo principal
+
+**Rutas modificadas:**
+- ✅ `app/api/candidates/[candidateId]/route.ts` - UPDATE/DELETE candidato
+- ✅ `app/api/elections/route.ts` - CREATE elección
+- ✅ `app/api/elections/[id]/route.ts` - UPDATE/DELETE elección
+- ✅ `app/api/elections/[id]/voting-points/route.ts` - CREATE punto de votación
+- ✅ `app/api/voting-points/[pointId]/route.ts` - UPDATE/DELETE punto
+- ✅ `app/api/voting-points/[pointId]/candidates/route.ts` - CREATE candidato
+- ✅ `app/api/voting-points/[pointId]/voters/route.ts` - ASSIGN votantes
+- ✅ `app/api/voting-points/[pointId]/voters/[voterId]/route.ts` - DELETE votante
+- ✅ `app/api/voters/bulk/route.ts` - BULK upload votantes
+
+**Patrón aplicado:**
+```typescript
+// Antes (fallaba silenciosamente)
+await supabase.from('audit_logs').insert({
+  user_id: user.id,
+  action: 'some_action',
+  entity_type: 'entity',
+  entity_id: entityId,
+  metadata: { ... },
+});
+
+// Después (funciona correctamente)
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.error('SUPABASE_SERVICE_ROLE_KEY not configured; audit not recorded');
+} else {
+  const serviceClient = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+  await recordAudit(serviceClient, {
+    request,
+    userId: user.id,
+    action: 'some_action',
+    entityType: 'entity',
+    entityId: entityId,
+    metadata: { ... },
+  });
+}
+```
+
+### Convención Establecida
+**Para registrar auditoría desde el servidor:**
+1. Usar siempre `recordAudit(serviceClient, ...)` con un cliente service-role
+2. No insertar directamente en `audit_logs` con clientes autenticados de usuario
+3. Verificar que `SUPABASE_SERVICE_ROLE_KEY` esté configurada
+4. Loggear en consola si falla el registro de auditoría
+
+### Verificación
+Tras el cambio, todas las acciones administrativas ahora se registran correctamente:
+```sql
+SELECT action, entity_type, created_at 
+FROM audit_logs 
+ORDER BY created_at DESC 
+LIMIT 20;
+```
+
+Acciones que ahora se registran:
+- `election_created`, `election_updated`, `election_deleted`
+- `voting_point_created`, `voting_point_updated`, `voting_point_deleted`
+- `candidate_created`, `candidate_updated`, `candidate_deleted`
+- `voters_assigned`, `voter_removed`
+- `bulk_voters_upload`
+- `vote_cast` (ya funcionaba)
+
+**Estado:** ✅ Corregido y estandarizado
+**Fecha actualización:** 19 de Febrero, 2026

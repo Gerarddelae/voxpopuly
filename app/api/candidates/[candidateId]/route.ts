@@ -1,4 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
+import { recordAudit } from '@/lib/server/audit';
 import { NextRequest, NextResponse } from 'next/server';
 import type { ApiResponse, CandidateFormData, Candidate } from '@/lib/types/database.types';
 
@@ -144,13 +146,22 @@ export async function PUT(
       );
     }
 
-    await supabase.from('audit_logs').insert({
-      user_id: user.id,
-      action: 'candidate_updated',
-      entity_type: 'candidate',
-      entity_id: candidateId,
-      metadata: { full_name: updatedCandidate.full_name },
-    });
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('SUPABASE_SERVICE_ROLE_KEY not configured; audit not recorded');
+    } else {
+      const serviceClient = createServiceClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+      await recordAudit(serviceClient, {
+        request,
+        userId: user.id,
+        action: 'candidate_updated',
+        entityType: 'candidate',
+        entityId: candidateId,
+        metadata: { full_name: updatedCandidate.full_name },
+      });
+    }
 
     return NextResponse.json<ApiResponse<Candidate>>({
       success: true,
@@ -239,13 +250,22 @@ export async function DELETE(
       );
     }
 
-    await supabase.from('audit_logs').insert({
-      user_id: user.id,
-      action: 'candidate_deleted',
-      entity_type: 'candidate',
-      entity_id: candidateId,
-      metadata: { full_name: candidate.full_name },
-    });
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('SUPABASE_SERVICE_ROLE_KEY not configured; audit not recorded');
+    } else {
+      const serviceClient = createServiceClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+      await recordAudit(serviceClient, {
+        request,
+        userId: user.id,
+        action: 'candidate_deleted',
+        entityType: 'candidate',
+        entityId: candidateId,
+        metadata: { full_name: candidate.full_name },
+      });
+    }
 
     return NextResponse.json<ApiResponse>({
       success: true,

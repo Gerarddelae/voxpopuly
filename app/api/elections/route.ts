@@ -1,4 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
+import { recordAudit } from '@/lib/server/audit';
 import { NextRequest, NextResponse } from 'next/server';
 import type { ApiResponse, Election, ElectionFormData } from '@/lib/types/database.types';
 
@@ -131,13 +133,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Registrar auditoría
-    await supabase.from('audit_logs').insert({
-      user_id: user.id,
-      action: 'election_created',
-      entity_type: 'election',
-      entity_id: election.id,
-      metadata: { title: election.title },
-    });
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('SUPABASE_SERVICE_ROLE_KEY not configured; audit not recorded');
+    } else {
+      const serviceClient = createServiceClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+      await recordAudit(serviceClient, {
+        request,
+        userId: user.id,
+        action: 'election_created',
+        entityType: 'election',
+        entityId: election.id,
+        metadata: { title: election.title },
+      });
+    }
 
     return NextResponse.json<ApiResponse<Election>>({
       success: true,

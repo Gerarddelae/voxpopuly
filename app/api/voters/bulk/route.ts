@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import type { ApiResponse } from '@/lib/types/database.types';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
+import { recordAudit } from '@/lib/server/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -282,12 +283,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Registrar en audit log
-    await supabase.from('audit_logs').insert({
-      user_id: user.id,
+    await recordAudit(adminClient, {
+      request,
+      userId: user.id,
       action: 'bulk_voters_upload',
-      entity_type: 'voting_point',
-      entity_id: votingPointId,
+      entityType: 'voting_point',
+      entityId: votingPointId,
       metadata: {
+        voting_point_id: votingPointId,
+        voting_point_name: votingPoint?.name || null,
         total: voters.length,
         created: result.created,
         skipped: result.skipped,

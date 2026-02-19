@@ -1,4 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
+import { recordAudit } from '@/lib/server/audit';
 import { NextRequest, NextResponse } from 'next/server';
 import type { ApiResponse, Election, ElectionFormData } from '@/lib/types/database.types';
 
@@ -185,13 +187,22 @@ export async function PUT(
     }
 
     // Registrar auditoría
-    await supabase.from('audit_logs').insert({
-      user_id: user.id,
-      action: 'election_updated',
-      entity_type: 'election',
-      entity_id: election.id,
-      metadata: updateData,
-    });
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('SUPABASE_SERVICE_ROLE_KEY not configured; audit not recorded');
+    } else {
+      const serviceClient = createServiceClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+      await recordAudit(serviceClient, {
+        request,
+        userId: user.id,
+        action: 'election_updated',
+        entityType: 'election',
+        entityId: election.id,
+        metadata: updateData,
+      });
+    }
 
     return NextResponse.json<ApiResponse<Election>>({
       success: true,
@@ -276,13 +287,22 @@ export async function DELETE(
     }
 
     // Registrar auditoría
-    await supabase.from('audit_logs').insert({
-      user_id: user.id,
-      action: 'election_deleted',
-      entity_type: 'election',
-      entity_id: id,
-      metadata: { title: existingElection.title },
-    });
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('SUPABASE_SERVICE_ROLE_KEY not configured; audit not recorded');
+    } else {
+      const serviceClient = createServiceClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+      await recordAudit(serviceClient, {
+        request,
+        userId: user.id,
+        action: 'election_deleted',
+        entityType: 'election',
+        entityId: id,
+        metadata: { title: existingElection.title },
+      });
+    }
 
     return NextResponse.json<ApiResponse>({
       success: true,

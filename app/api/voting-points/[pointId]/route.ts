@@ -1,4 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
+import { recordAudit } from '@/lib/server/audit';
 import { NextRequest, NextResponse } from 'next/server';
 import type { ApiResponse, VotingPoint, VotingPointFormData } from '@/lib/types/database.types';
 
@@ -168,13 +170,22 @@ export async function PUT(
     }
 
     // Registrar auditoría
-    await supabase.from('audit_logs').insert({
-      user_id: user.id,
-      action: 'voting_point_updated',
-      entity_type: 'voting_point',
-      entity_id: votingPoint.id,
-      metadata: updateData,
-    });
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('SUPABASE_SERVICE_ROLE_KEY not configured; audit not recorded');
+    } else {
+      const serviceClient = createServiceClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+      await recordAudit(serviceClient, {
+        request,
+        userId: user.id,
+        action: 'voting_point_updated',
+        entityType: 'voting_point',
+        entityId: votingPoint.id,
+        metadata: updateData,
+      });
+    }
 
     return NextResponse.json<ApiResponse<VotingPoint>>({
       success: true,
@@ -259,13 +270,22 @@ export async function DELETE(
     }
 
     // Registrar auditoría
-    await supabase.from('audit_logs').insert({
-      user_id: user.id,
-      action: 'voting_point_deleted',
-      entity_type: 'voting_point',
-      entity_id: pointId,
-      metadata: { name: existingPoint.name },
-    });
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('SUPABASE_SERVICE_ROLE_KEY not configured; audit not recorded');
+    } else {
+      const serviceClient = createServiceClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+      await recordAudit(serviceClient, {
+        request,
+        userId: user.id,
+        action: 'voting_point_deleted',
+        entityType: 'voting_point',
+        entityId: pointId,
+        metadata: { name: existingPoint.name },
+      });
+    }
 
     return NextResponse.json<ApiResponse>({
       success: true,
